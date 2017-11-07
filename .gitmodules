@@ -1,0 +1,6 @@
+[submodule "genesis"]
+	path = genesis
+	url = https://github.com/lczech/genesis.git
+[submodule "QuartetScores"]
+	path = QuartetScores
+	url = https://github.com/algomaus/QuartetScores.git
