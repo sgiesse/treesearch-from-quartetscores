@@ -34,6 +34,10 @@ int main() {
     std::cout << PrinterCompact().print( ref_tree );
     //std::cout << PrinterTable().print( tree );
 
+    Tree sa_tree = stepwise_addition_tree(
+        "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", mt);
+    std::cout << PrinterCompact().print(sa_tree);
+
     Tree rand_tree = random_tree(
         "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", mt);
     std::cout << PrinterCompact().print( rand_tree );
@@ -43,8 +47,13 @@ int main() {
     std::cout << "Sum lqic Reference Tree: " << sum_lqic_scores(qsc) << std::endl;
 
     qsc = QuartetScoreComputer<uint64_t>(rand_tree, "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", 1218, true, true); //TODO int type
-
     std::cout << "Sum lqic pure random Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    qsc = QuartetScoreComputer<uint64_t>(sa_tree, "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", 1218, true, true); //TODO int type
+    std::cout << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    Tree tree = tree_search(sa_tree, qsc, mt);
+/*
     Tree tree = rand_tree;
     for (int i = 0; i < 5; ++i) {
         tree = make_random_nni_moves(tree, 49, distribution_edges, distribution_ab, mt);
@@ -54,5 +63,6 @@ int main() {
         tree = tree_search(tree, qsc, mt);
         std::cout << std::endl;
     }
+*/
 }
 

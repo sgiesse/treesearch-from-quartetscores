@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
+#include "genesis/tree/function/manipulation.hpp"
 
 // --------- Forward Declarations
 std::vector<Tree> nni(Tree& tree);
@@ -106,6 +108,99 @@ Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     std::uniform_int_distribution<int> distribution_edges = std::uniform_int_distribution<int>(0,tree.edge_count()-1);
     return make_random_nni_moves(tree, 10, distribution_edges, distribution_ab, mt);
 }
+
+
+Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
+    // Get set of node names
+
+    std::set<std::string> leaf_names;
+    utils::InputStream instream(utils::make_unique<utils::FileInputSource>(evalTreesPath));
+    auto itTree = NewickInputIterator(instream, DefaultTreeNewickReader());
+    while (itTree) {
+        Tree const& tree = *itTree;
+        for(auto const& node : tree.nodes()) {
+            if (node->is_leaf()) {
+                auto const& name = node->data<DefaultNodeData>().name;
+                leaf_names.insert(name);
+            }
+        }
+        ++itTree;
+    }
+
+    std::vector<std::string> leaves(leaf_names.begin(), leaf_names.end());
+    //std::shuffle(leaves.begin(), leaves.end(), mt);
+    std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
+    leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
+    Tree tree = DefaultTreeNewickReader().from_string(newick);
+    std::cout << PrinterCompact().print(tree);
+
+    Tree rand_tree = random_tree(evalTreesPath, mt);
+    QuartetScoreComputer<uint64_t> qsc(rand_tree, evalTreesPath, 1218, true, true); //TODO int type, parameters
+
+
+    while (!leaves.empty()) {
+        std::string lname = leaves.back();
+        leaves.pop_back();
+        std::cout << "insert " << lname << std::endl;
+
+        Tree best;
+        double max = std::numeric_limits<double>::lowest();
+        for (size_t i = 0; i < tree.edge_count(); ++i) {
+            std::cout << "leaves left: " << leaves.size() << " edge " << i << "/" << tree.edge_count() << std::endl;
+
+            auto const& edge = tree.edge_at(i);
+            if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
+                continue; //edge is internode TODO how?
+
+            Tree tnew = Tree(tree);
+
+            add_new_node(tnew, tnew.edge_at(i).secondary_link().node());
+            add_new_node(tnew, tnew.edge_at(i).secondary_link().node());
+            tnew.edge_at(i).secondary_link().next().outer().node().data_cast<DefaultNodeData>()->name = lname;
+
+            size_t l2 = tnew.edge_at(i).primary_link().index();
+            size_t l3 = tnew.edge_at(i).secondary_link().index();
+            size_t l6 = tnew.link_at(l3).next().index();
+            size_t l8 = tnew.link_at(l6).next().index();
+            size_t l9 = tnew.link_at(l8).outer().index();
+
+            tnew.link_at(l9).reset_next(&tnew.link_at(l6));
+            tnew.link_at(l8).reset_next(&tnew.link_at(l9));
+            tnew.link_at(l3).reset_next(&tnew.link_at(l3));
+
+            tnew.link_at(l2).reset_outer(&tnew.link_at(l9));
+            tnew.link_at(l9).reset_outer(&tnew.link_at(l2));
+            tnew.link_at(l3).reset_outer(&tnew.link_at(l8));
+            tnew.link_at(l8).reset_outer(&tnew.link_at(l3));
+
+            tnew.link_at(l6).reset_node(&tnew.link_at(l9).node());
+            tnew.link_at(l8).reset_node(&tnew.link_at(l9).node());
+
+            tnew.link_at(l2).edge().reset_secondary_link(&tnew.link_at(l9));
+            tnew.link_at(l8).edge().reset_secondary_link(&tnew.link_at(l3));
+
+            tnew.link_at(l3).reset_edge(&tnew.link_at(l8).edge());
+            tnew.link_at(l9).reset_edge(&tnew.link_at(l2).edge());
+
+            std::cout << "valid tnew:  " << validate_topology(tnew) << std::endl;
+            //std::cout << PrinterTable().print(tnew);
+            //std::cout << PrinterCompact().print(tnew);
+
+            qsc.recomputeScores(tnew, false);
+            double sum = sum_lqic_scores(qsc);
+            std::cout << "sum lqic " << sum << std::endl;
+            if (sum > max) {
+                best = tnew;
+                max = sum;
+            }
+        }
+        std::cout << "choose tree to continue with sum lqic " << max << std::endl;
+        tree = best;
+    }
+
+    return tree;
+}
+
 
 
 std::vector<Tree> nni(Tree& tree) {
