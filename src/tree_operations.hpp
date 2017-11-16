@@ -14,9 +14,7 @@ Tree make_random_nni_moves(Tree& tree, int n, std::uniform_int_distribution<int>
 
 // -----------------------------
 
-Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
-    // Get set of node names
-
+std::vector<std::string> leafNames(const std::string &evalTreesPath) {
     std::set<std::string> leaf_names;
     utils::InputStream instream(utils::make_unique<utils::FileInputSource>(evalTreesPath));
     auto itTree = NewickInputIterator(instream, DefaultTreeNewickReader());
@@ -31,16 +29,15 @@ Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
         ++itTree;
     }
 
-    std::vector<std::string> leaves(leaf_names.begin(), leaf_names.end());
-    //std::random_shuffle(leaves.begin(), leaves.end());
-    std::shuffle(leaves.begin(), leaves.end(), mt);
+    return std::vector<std::string>(leaf_names.begin(), leaf_names.end());
+}
 
+Tree random_tree_from_leaves(std::vector<std::string> leaves) {
     // Define simple Tree structure
     struct SimpleNode {
         std::vector<SimpleNode> children;
         std::string name;
     };
-
 
     // Root, 3xchilds, 2x childs per internal node recursively
     int L = leaves.size(); // number of leaves
@@ -102,46 +99,117 @@ Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     // Genesis Tree from newick string
     Tree tree = DefaultTreeNewickReader().from_string(newick);
     return tree;
-
+/*
     // random NNI moves
     std::uniform_int_distribution<int> distribution_ab = std::uniform_int_distribution<int>(0,1);
     std::uniform_int_distribution<int> distribution_edges = std::uniform_int_distribution<int>(0,tree.edge_count()-1);
-    return make_random_nni_moves(tree, 10, distribution_edges, distribution_ab, mt);
+    return make_random_nni_moves(tree, 10, distribution_edges, distribution_ab, mt);*/
+}
+
+Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
+    // Get set of node names
+    std::vector<std::string> leaves = leafNames(evalTreesPath);
+
+    std::shuffle(leaves.begin(), leaves.end(), mt);
+    return random_tree_from_leaves(leaves);
+}
+
+bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose = false) {
+    std::map<std::string, size_t> leafToID1;
+    std::map<std::string, size_t> leafToID2;
+
+    for (size_t i = 0; i < tree1.node_count(); ++i) {
+        if (tree1.node_at(i).is_leaf())
+            leafToID1[tree1.node_at(i).data<DefaultNodeData>().name] = i;
+    }
+    for (size_t i = 0; i < tree2.node_count(); ++i) {
+        if (tree2.node_at(i).is_leaf())
+            leafToID2[tree2.node_at(i).data<DefaultNodeData>().name] = i;
+    }
+
+    bool ok = true;
+    if (leafToID1.size() < leafToID2.size()) {
+        for (auto it = leafToID1.begin(); it != leafToID1.end(); ++it) {
+            if (leafToID2.find(it->first) == leafToID2.end() or
+                leafToID1[it->first] != leafToID2[it->first]) {
+                if (verbose) {
+                    std::cout << "leafToID1[" << it->first << "] = " << leafToID1[it->first] << " != leafToID2[" << it->first << "] = "  << leafToID2[it->first] << std::endl;
+                } else {
+                    return false;
+                }
+            }
+        }
+    } else {
+        for (auto it = leafToID2.begin(); it != leafToID2.end(); ++it) {
+            if (leafToID1.find(it->first) == leafToID1.end() or
+                leafToID1[it->first] != leafToID2[it->first]) {
+                if (verbose) {
+                    std::cout << "leafToID1[" << it->first << "] = " << leafToID1[it->first] << " != leafToID2[" << it->first << "] = "  << leafToID2[it->first] << std::endl;
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return ok;
 }
 
 
 Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     // Get set of node names
+    std::vector<std::string> leaves = leafNames(evalTreesPath);
+    std::shuffle(leaves.begin(), leaves.end(), mt);
 
-    std::set<std::string> leaf_names;
-    utils::InputStream instream(utils::make_unique<utils::FileInputSource>(evalTreesPath));
-    auto itTree = NewickInputIterator(instream, DefaultTreeNewickReader());
-    while (itTree) {
-        Tree const& tree = *itTree;
-        for(auto const& node : tree.nodes()) {
-            if (node->is_leaf()) {
-                auto const& name = node->data<DefaultNodeData>().name;
-                leaf_names.insert(name);
-            }
-        }
-        ++itTree;
-    }
+/*    std::string newick_precompute_tree = "(";
+    for (size_t i = leaves.size() - 1; i > 0; --i)
+        newick_precompute_tree += leaves[i] + ",";
+    newick_precompute_tree += leaves[0] + ");";
+    std::cout << newick_precompute_tree << std::endl;
+    Tree precompute_tree = DefaultTreeNewickReader().from_string(newick_precompute_tree);
+    std::cout << PrinterCompact().print(precompute_tree);
 
-    std::vector<std::string> leaves(leaf_names.begin(), leaf_names.end());
-    //std::shuffle(leaves.begin(), leaves.end(), mt);
+    QuartetScoreComputer<uint64_t> qsc(precompute_tree, evalTreesPath, 1218, true, true);
+*/
+    //Tree rand_tree = random_tree_from_leaves(leaves);
+    //QuartetScoreComputer<uint64_t> qsc(rand_tree, evalTreesPath, 1218, true, true);
+
+    /*
+
+      TODO:
+      Problem: QuartetScoreComputer uses ref tree to map taxon names. stepwise add tree
+               gets different ids per leaf.
+
+      Solution 1: In QuartetScores: taxon map from eval trees
+
+      Solution 2: per new leaf
+                   qsc
+                   recompute
+                 Problem: qsc fails as ref tree has less leaves than evaltrees
+                 Solution:
+                   precalc_tree = add_tree + add nodes for rest of leaves
+                   qsc (precalc_tree)
+                   recompute(add_tree)
+     */
+
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
     Tree tree = DefaultTreeNewickReader().from_string(newick);
     std::cout << PrinterCompact().print(tree);
 
-    Tree rand_tree = random_tree(evalTreesPath, mt);
-    QuartetScoreComputer<uint64_t> qsc(rand_tree, evalTreesPath, 1218, true, true); //TODO int type, parameters
-
-
     while (!leaves.empty()) {
         std::string lname = leaves.back();
         leaves.pop_back();
         std::cout << "insert " << lname << std::endl;
+
+        Tree precalc_tree(tree);
+        TreeEdge& edge = add_new_node(precalc_tree, precalc_tree.node_at(0));
+        edge.secondary_link().node().data<DefaultNodeData>().name = lname;
+        for (size_t i = 0; i < leaves.size(); ++i){
+            TreeEdge& edge = add_new_node(precalc_tree, precalc_tree.node_at(0));
+            edge.secondary_link().node().data<DefaultNodeData>().name = leaves[i];
+        }
+        QuartetScoreComputer<uint64_t> qsc(precalc_tree, evalTreesPath, 1218, true, true);
 
         Tree best;
         double max = std::numeric_limits<double>::lowest();
@@ -183,6 +251,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
             tnew.link_at(l9).reset_edge(&tnew.link_at(l2).edge());
 
             std::cout << "valid tnew:  " << validate_topology(tnew) << std::endl;
+            std::cout << "valid leaf names:  " << verify_leaf_ids_match(tnew, precalc_tree) << std::endl;
             //std::cout << PrinterTable().print(tnew);
             //std::cout << PrinterCompact().print(tnew);
 
@@ -193,6 +262,12 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
                 best = tnew;
                 max = sum;
             }
+
+            if (!verify_leaf_ids_match(tnew, precalc_tree)) {
+                verify_leaf_ids_match(tnew, precalc_tree, true);
+                throw std::runtime_error("leaf names don't match");
+            }
+
         }
         std::cout << "choose tree to continue with sum lqic " << max << std::endl;
         tree = best;
