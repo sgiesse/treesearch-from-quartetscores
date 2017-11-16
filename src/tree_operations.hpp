@@ -155,61 +155,65 @@ bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose = false) {
     return ok;
 }
 
+void add_leaf(Tree& tree, size_t i, std::string lname) {
+    add_new_node(tree, tree.edge_at(i).secondary_link().node());
+    add_new_node(tree, tree.edge_at(i).secondary_link().node());
+    tree.edge_at(i).secondary_link().next().outer().node().data_cast<DefaultNodeData>()->name = lname;
+
+    size_t l2 = tree.edge_at(i).primary_link().index();
+    size_t l3 = tree.edge_at(i).secondary_link().index();
+    size_t l6 = tree.link_at(l3).next().index();
+    size_t l8 = tree.link_at(l6).next().index();
+    size_t l9 = tree.link_at(l8).outer().index();
+
+    tree.link_at(l9).reset_next(&tree.link_at(l6));
+    tree.link_at(l8).reset_next(&tree.link_at(l9));
+    tree.link_at(l3).reset_next(&tree.link_at(l3));
+
+    tree.link_at(l2).reset_outer(&tree.link_at(l9));
+    tree.link_at(l9).reset_outer(&tree.link_at(l2));
+    tree.link_at(l3).reset_outer(&tree.link_at(l8));
+    tree.link_at(l8).reset_outer(&tree.link_at(l3));
+
+    tree.link_at(l6).reset_node(&tree.link_at(l9).node());
+    tree.link_at(l8).reset_node(&tree.link_at(l9).node());
+
+    tree.link_at(l2).edge().reset_secondary_link(&tree.link_at(l9));
+    tree.link_at(l8).edge().reset_secondary_link(&tree.link_at(l3));
+
+    tree.link_at(l3).reset_edge(&tree.link_at(l8).edge());
+    tree.link_at(l9).reset_edge(&tree.link_at(l2).edge());
+}
+
 
 Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
     std::shuffle(leaves.begin(), leaves.end(), mt);
 
-/*    std::string newick_precompute_tree = "(";
-    for (size_t i = leaves.size() - 1; i > 0; --i)
-        newick_precompute_tree += leaves[i] + ",";
-    newick_precompute_tree += leaves[0] + ");";
-    std::cout << newick_precompute_tree << std::endl;
-    Tree precompute_tree = DefaultTreeNewickReader().from_string(newick_precompute_tree);
-    std::cout << PrinterCompact().print(precompute_tree);
-
-    QuartetScoreComputer<uint64_t> qsc(precompute_tree, evalTreesPath, 1218, true, true);
-*/
-    //Tree rand_tree = random_tree_from_leaves(leaves);
-    //QuartetScoreComputer<uint64_t> qsc(rand_tree, evalTreesPath, 1218, true, true);
-
-    /*
-
-      TODO:
-      Problem: QuartetScoreComputer uses ref tree to map taxon names. stepwise add tree
-               gets different ids per leaf.
-
-      Solution 1: In QuartetScores: taxon map from eval trees
-
-      Solution 2: per new leaf
-                   qsc
-                   recompute
-                 Problem: qsc fails as ref tree has less leaves than evaltrees
-                 Solution:
-                   precalc_tree = add_tree + add nodes for rest of leaves
-                   qsc (precalc_tree)
-                   recompute(add_tree)
-     */
-
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
     Tree tree = DefaultTreeNewickReader().from_string(newick);
-    std::cout << PrinterCompact().print(tree);
+
+    Tree precalc_tree(tree);
+    for (int i = leaves.size()-1; i >= 0; --i) {
+        std::cout << leaves[i] << std::endl;
+        for (size_t j = 0; j < precalc_tree.edge_count(); ++j) {
+            auto const& edge = precalc_tree.edge_at(j);
+            if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
+                continue;
+            else {
+                add_leaf(precalc_tree, j, leaves[i]);
+                break;
+            }
+        }
+    }
+    QuartetScoreComputer<uint64_t> qsc(precalc_tree, evalTreesPath, 1218, true, true);
 
     while (!leaves.empty()) {
         std::string lname = leaves.back();
         leaves.pop_back();
         std::cout << "insert " << lname << std::endl;
-
-        Tree precalc_tree(tree);
-        TreeEdge& edge = add_new_node(precalc_tree, precalc_tree.node_at(0));
-        edge.secondary_link().node().data<DefaultNodeData>().name = lname;
-        for (size_t i = 0; i < leaves.size(); ++i){
-            TreeEdge& edge = add_new_node(precalc_tree, precalc_tree.node_at(0));
-            edge.secondary_link().node().data<DefaultNodeData>().name = leaves[i];
-        }
-        QuartetScoreComputer<uint64_t> qsc(precalc_tree, evalTreesPath, 1218, true, true);
 
         Tree best;
         double max = std::numeric_limits<double>::lowest();
@@ -221,37 +225,9 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
                 continue; //edge is internode TODO how?
 
             Tree tnew = Tree(tree);
-
-            add_new_node(tnew, tnew.edge_at(i).secondary_link().node());
-            add_new_node(tnew, tnew.edge_at(i).secondary_link().node());
-            tnew.edge_at(i).secondary_link().next().outer().node().data_cast<DefaultNodeData>()->name = lname;
-
-            size_t l2 = tnew.edge_at(i).primary_link().index();
-            size_t l3 = tnew.edge_at(i).secondary_link().index();
-            size_t l6 = tnew.link_at(l3).next().index();
-            size_t l8 = tnew.link_at(l6).next().index();
-            size_t l9 = tnew.link_at(l8).outer().index();
-
-            tnew.link_at(l9).reset_next(&tnew.link_at(l6));
-            tnew.link_at(l8).reset_next(&tnew.link_at(l9));
-            tnew.link_at(l3).reset_next(&tnew.link_at(l3));
-
-            tnew.link_at(l2).reset_outer(&tnew.link_at(l9));
-            tnew.link_at(l9).reset_outer(&tnew.link_at(l2));
-            tnew.link_at(l3).reset_outer(&tnew.link_at(l8));
-            tnew.link_at(l8).reset_outer(&tnew.link_at(l3));
-
-            tnew.link_at(l6).reset_node(&tnew.link_at(l9).node());
-            tnew.link_at(l8).reset_node(&tnew.link_at(l9).node());
-
-            tnew.link_at(l2).edge().reset_secondary_link(&tnew.link_at(l9));
-            tnew.link_at(l8).edge().reset_secondary_link(&tnew.link_at(l3));
-
-            tnew.link_at(l3).reset_edge(&tnew.link_at(l8).edge());
-            tnew.link_at(l9).reset_edge(&tnew.link_at(l2).edge());
+            add_leaf(tnew, i, lname);
 
             std::cout << "valid tnew:  " << validate_topology(tnew) << std::endl;
-            std::cout << "valid leaf names:  " << verify_leaf_ids_match(tnew, precalc_tree) << std::endl;
             //std::cout << PrinterTable().print(tnew);
             //std::cout << PrinterCompact().print(tnew);
 
