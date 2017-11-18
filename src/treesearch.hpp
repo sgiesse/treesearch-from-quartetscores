@@ -136,7 +136,7 @@ Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
 }
 
 template<typename CINT>
-Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
+Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt, size_t m) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
     std::shuffle(leaves.begin(), leaves.end(), mt);
@@ -158,7 +158,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
             }
         }
     }
-    QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, 1218, true, true);
+    QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, m, true, true);
 
     while (!leaves.empty()) {
         std::string lname = leaves.back();

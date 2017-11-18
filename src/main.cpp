@@ -34,7 +34,7 @@ size_t countEvalTrees(const std::string &evalTreesPath) {
 
 template<typename CINT>
 void doStuff(std::string pathToEvaluationTrees, int m, std::mt19937 mt) {
-    Tree sa_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, mt);
+    Tree sa_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, mt, m);
     std::cout << PrinterCompact().print(sa_tree);
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(sa_tree, pathToEvaluationTrees, m, true, true);
