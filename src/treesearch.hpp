@@ -4,7 +4,8 @@
 #include "utils.hpp"
 #include "tree_operations.hpp"
 
-Tree tree_search(Tree& tree, QuartetScoreComputer<uint64_t>& qsc, std::mt19937 mt) {
+template<typename CINT>
+Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, std::mt19937 mt) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -134,6 +135,7 @@ Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     return random_tree_from_leaves(leaves);
 }
 
+template<typename CINT>
 Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
@@ -156,7 +158,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt) {
             }
         }
     }
-    QuartetScoreComputer<uint64_t> qsc(precalc_tree, evalTreesPath, 1218, true, true);
+    QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, 1218, true, true);
 
     while (!leaves.empty()) {
         std::string lname = leaves.back();
