@@ -44,6 +44,37 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::mt19937 mt) {
 
 int main() {
     Logging::log_to_stdout ();
+    //std::string newick = "(((E1,E2),(G,F)),(C,(A,B)),D);";
+    std::string newick = "(((A,B),C),((D,E),(F,G)),(H,(I,((J,K),L))));";
+    Tree tree = DefaultTreeNewickReader().from_string(newick);
+
+    std::function<std::string (TreeNode const& node,TreeEdge const& edge)> print_help;
+    print_help = [](TreeNode const& node,TreeEdge const& edge) {
+        std::string out = node.data<DefaultNodeData>().name;
+        out += " ";
+        out += std::to_string(node.index());
+        out += " --- (";
+        out += std::to_string(edge.index());
+        out += ": ";
+        out += std::to_string(edge.primary_link().index());
+        out += ",";
+        out += std::to_string(edge.secondary_link().index());
+        out += ")";
+        return out;
+    };
+    std::cout << PrinterCompact().print(tree, print_help);
+
+    size_t edge1 = find_node( tree, "D" )->link().outer().next().next().edge().index();
+    size_t edge2 = find_node( tree, "G" )->link().edge().index();
+    edge1 = 18;
+    edge2 = 4;
+    std::cout << edge1 << " " << edge2 << std::endl;
+    tree = spr(tree, edge1, edge2);
+    std::cout << PrinterCompact().print(tree, print_help);
+}
+
+int main2() {
+    Logging::log_to_stdout ();
 
     std::string pathToEvaluationTrees =
         "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre";
@@ -64,5 +95,7 @@ int main() {
     else if (m < (size_t(1) << 16)) doStuff<uint16_t>(pathToEvaluationTrees, m, mt);
     else if (m < (size_t(1) << 32)) doStuff<uint32_t>(pathToEvaluationTrees, m, mt);
     else doStuff<uint64_t>(pathToEvaluationTrees, m, mt);
+
+    return 0;
 }
 

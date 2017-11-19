@@ -10,12 +10,61 @@
 std::vector<Tree> nni(Tree& tree);
 Tree nni_a(Tree& tree, int i);
 Tree nni_b(Tree& tree, int i);
+Tree spr(Tree& tree, int i, int j);
 Tree make_random_nni_moves(Tree& tree, int n, std::uniform_int_distribution<int> distribution_edges, std::uniform_int_distribution<int> distribution_ab, std::mt19937 mt);
 std::vector<std::string> leafNames(const std::string &evalTreesPath);
 bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
 void add_leaf(Tree& tree, size_t i, std::string lname);
 
 // -----------------------------
+
+Tree spr(Tree& tree, int pruneEdgeIdx, int regraftEdgeIdx) {
+    size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
+    size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
+
+    size_t l0, l2, l3, l7, l10, l25;
+
+    bool regraftInNext = false;
+    for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().outer().next())) {
+        if (it.link().index() == tree.link_at(pruneLinkIdx).next().next().index()) break;
+        if (it.link().index() == regraftLinkIdx) regraftInNext = true;
+    }
+    bool regraftInNextNext = false;
+    for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().next().outer().next())) {
+        if (it.link().index() == tree.link_at(pruneLinkIdx).next().index()) break;
+        if (it.link().index() == regraftLinkIdx) regraftInNextNext = true;
+    }
+    if (!regraftInNext and !regraftInNextNext)
+        throw std::runtime_error("SPR not possible");
+
+    if (regraftInNext) {
+        // TODO test/verify if correct for all cases
+        l0 = tree.link_at(pruneLinkIdx).next().next().index();
+        l10 = tree.link_at(regraftLinkIdx).outer().index();
+        l2 = tree.link_at(pruneLinkIdx).next().index();
+        l3 = tree.link_at(pruneLinkIdx).next().outer().index();
+        l7 = regraftLinkIdx;
+        l25 = tree.link_at(pruneLinkIdx).next().next().outer().index();
+    } else {
+        // TODO test/verify if correct for all cases
+        l0 = tree.link_at(pruneLinkIdx).next().index();
+        l10 = tree.link_at(regraftLinkIdx).outer().index();
+        l2 = tree.link_at(pruneLinkIdx).next().next().index();
+        l3 = tree.link_at(pruneLinkIdx).next().next().outer().index();
+        l7 = regraftLinkIdx;
+        l25 = tree.link_at(pruneLinkIdx).next().outer().index();
+    }
+
+    tree.link_at(l2).reset_outer(&tree.link_at(l7));
+    tree.link_at(l7).reset_outer(&tree.link_at(l2));
+    tree.link_at(l3).reset_outer(&tree.link_at(l25));
+    tree.link_at(l25).reset_outer(&tree.link_at(l3));
+    tree.link_at(l0).reset_outer(&tree.link_at(l10));
+    tree.link_at(l10).reset_outer(&tree.link_at(l0));
+
+
+    return tree;
+}
 
 std::vector<std::string> leafNames(const std::string &evalTreesPath) {
     std::set<std::string> leaf_names;
