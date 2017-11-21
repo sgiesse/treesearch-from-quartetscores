@@ -21,93 +21,142 @@ void add_leaf(Tree& tree, size_t i, std::string lname);
 bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
     size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
-    std::cout << "SPR " << pruneEdgeIdx << " " << regraftEdgeIdx << std::endl;
+    //std::cout << "SPR " << pruneEdgeIdx << " " << regraftEdgeIdx << std::endl;
     size_t l0, l2, l3, l7, l10, l25;
 
-    bool regraftInNext = false;
-    for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().outer().next())) {
-        if (it.link().index() == tree.link_at(pruneLinkIdx).next().next().index()) break;
-        if (it.edge().index() == regraftEdgeIdx) regraftInNext = true;
-    }
-    bool regraftInNextNext = false;
-    for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().next().outer().next())) {
-        if (it.link().index() == tree.link_at(pruneLinkIdx).index()) break;
-        if (it.edge().index() == regraftEdgeIdx) regraftInNextNext = true;
-    }
-    if (!regraftInNext and !regraftInNextNext) {
-        std::cout << "SPR done: not possible" << std::endl;
+    if (tree.edge_at(pruneEdgeIdx).primary_link().node().index() == tree.edge_at(regraftEdgeIdx).primary_link().node().index()) {
+        std::cout << "SPR not possible: 1\n";
         return false;
-        //throw std::runtime_error("SPR not possible");
     }
 
-    if (regraftInNext) {
-        // TODO test/verify if correct for all cases
-        l0 = tree.link_at(pruneLinkIdx).next().next().index();
-        l10 = tree.link_at(regraftLinkIdx).outer().index();
-        l2 = tree.link_at(pruneLinkIdx).next().index();
-        l3 = tree.link_at(pruneLinkIdx).next().outer().index();
-        l7 = regraftLinkIdx;
-        l25 = tree.link_at(pruneLinkIdx).next().next().outer().index();
-    } else {
-        // TODO test/verify if correct for all cases
-        l0 = tree.link_at(pruneLinkIdx).next().index();
-        l10 = tree.link_at(regraftLinkIdx).outer().index();
-        l2 = tree.link_at(pruneLinkIdx).next().next().index();
-        l3 = tree.link_at(pruneLinkIdx).next().next().outer().index();
-        l7 = regraftLinkIdx;
-        l25 = tree.link_at(pruneLinkIdx).next().outer().index();
-    }
+    if (!tree.link_at(pruneLinkIdx).node().is_root()) {
 
-    std::cout << "SPR rearrange tree" << std::endl;
-    size_t e0 = tree.link_at(l2).edge().index();
-    size_t e3 = tree.link_at(l7).edge().index();
-    size_t e12 = tree.link_at(l0).edge().index();
+        // Case 1: Prune Node is not root
 
-    tree.edge_at(e0).reset_secondary_link(&tree.link_at(l7));
-    tree.edge_at(e3).reset_primary_link(&tree.link_at(l3));
-    tree.edge_at(e3).reset_secondary_link(&tree.link_at(l25));
-    tree.edge_at(e12).reset_secondary_link(&tree.link_at(l10));
-
-    tree.link_at(l3).reset_edge(&tree.edge_at(e3));
-    tree.link_at(l7).reset_edge(&tree.edge_at(e0));
-    tree.link_at(l10).reset_edge(&tree.edge_at(e12));
-    tree.link_at(l25).reset_edge(&tree.edge_at(e3));
-
-    tree.link_at(l2).reset_outer(&tree.link_at(l7));
-    tree.link_at(l7).reset_outer(&tree.link_at(l2));
-    tree.link_at(l3).reset_outer(&tree.link_at(l25));
-    tree.link_at(l25).reset_outer(&tree.link_at(l3));
-    tree.link_at(l0).reset_outer(&tree.link_at(l10));
-    tree.link_at(l10).reset_outer(&tree.link_at(l0));
-
-    int c = 0;
-    for(auto it : preorder(tree.root_node())) {
-        if (it.link().index() != it.edge().secondary_link().index()
-            and it.node().index() != tree.root_node().index()) {
-            // revert edge direction
-            size_t lp = it.edge().primary_link().index();
-            size_t ls = it.edge().secondary_link().index();
-            it.edge().reset_primary_link(&tree.link_at(ls));
-            it.edge().reset_secondary_link(&tree.link_at(lp));
+        bool child = false;
+        for(auto it : eulertour(tree.link_at(pruneLinkIdx))) {
+            if (it.link().index() == tree.link_at(pruneLinkIdx).next().index()) break;
+            if (it.edge().index() == regraftEdgeIdx) child = true;
         }
-        if (it.node().primary_link().index() != it.edge().primary_link().index()
-            and it.node().index() != tree.root_node().index()) {
-            it.node().reset_primary_link(&it.edge().secondary_link());
+        bool parent = false;
+        for(auto it : eulertour(tree.link_at(regraftLinkIdx))) {
+            if (it.link().index() == tree.link_at(regraftLinkIdx).next().index()) break;
+            if (it.edge().index() == pruneEdgeIdx) parent = true;
         }
-        c++;
-        if (c > (int)tree.link_count()) {
-            std::cout << "SPR done: preorder endless loop detected" << std::endl;
-            validate_topology(tree);
+
+        if (child or parent) {
+            std::cout << "SPR not possible: 2\n";
+            return false;
+        }
+
+        size_t lps = tree.link_at(pruneLinkIdx).outer().index();
+        size_t lrs = tree.link_at(regraftLinkIdx).outer().index();
+
+        tree.edge_at(pruneEdgeIdx).reset_secondary_link(&tree.link_at(lrs));
+        tree.edge_at(regraftEdgeIdx).reset_secondary_link(&tree.link_at(lps));
+
+        tree.link_at(lrs).reset_edge(&tree.edge_at(pruneEdgeIdx));
+        tree.link_at(lps).reset_edge(&tree.edge_at(regraftEdgeIdx));
+
+        tree.link_at(pruneLinkIdx).reset_outer(&tree.link_at(lrs));
+        tree.link_at(lrs).reset_outer(&tree.link_at(pruneLinkIdx));
+        tree.link_at(regraftLinkIdx).reset_outer(&tree.link_at(lps));
+        tree.link_at(lps).reset_outer(&tree.link_at(regraftLinkIdx));
+
+        if (!validate_topology(tree)) {
+            std::cout << "SPR done: not valid" << std::endl;
             std::cout << PrinterTable().print(tree);
-            //return false;
             throw std::runtime_error("SPR not possible");
-            
+            return false;
         }
     }
 
-    if (!validate_topology(tree)) {
-        std::cout << "SPR done: not valid" << std::endl;
-        return false;
+    else {
+        // Case 2: Prune Node is root
+        bool regraftInNext = false;
+        for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().outer().next())) {
+            if (it.link().index() == tree.link_at(pruneLinkIdx).next().next().index()) break;
+            if (it.edge().index() == regraftEdgeIdx) regraftInNext = true;
+        }
+        bool regraftInNextNext = false;
+        for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().next().outer().next())) {
+            if (it.link().index() == tree.link_at(pruneLinkIdx).index()) break;
+            if (it.edge().index() == regraftEdgeIdx) regraftInNextNext = true;
+        }
+        if (!regraftInNext and !regraftInNextNext) {
+            std::cout << "SPR not possible: 3" << std::endl;
+            return false;
+            //throw std::runtime_error("SPR not possible");
+        }
+
+        if (regraftInNext) {
+            l0 = tree.link_at(pruneLinkIdx).next().next().index();
+            l10 = tree.link_at(regraftLinkIdx).outer().index();
+            l2 = tree.link_at(pruneLinkIdx).next().index();
+            l3 = tree.link_at(pruneLinkIdx).next().outer().index();
+            l7 = regraftLinkIdx;
+            l25 = tree.link_at(pruneLinkIdx).next().next().outer().index();
+        } else {
+            l0 = tree.link_at(pruneLinkIdx).next().index();
+            l10 = tree.link_at(regraftLinkIdx).outer().index();
+            l2 = tree.link_at(pruneLinkIdx).next().next().index();
+            l3 = tree.link_at(pruneLinkIdx).next().next().outer().index();
+            l7 = regraftLinkIdx;
+            l25 = tree.link_at(pruneLinkIdx).next().outer().index();
+        }
+
+        size_t e0 = tree.link_at(l2).edge().index();
+        size_t e3 = tree.link_at(l7).edge().index();
+        size_t e12 = tree.link_at(l0).edge().index();
+
+        tree.edge_at(e0).reset_secondary_link(&tree.link_at(l7));
+        tree.edge_at(e3).reset_primary_link(&tree.link_at(l3));
+        tree.edge_at(e3).reset_secondary_link(&tree.link_at(l25));
+        tree.edge_at(e12).reset_secondary_link(&tree.link_at(l10));
+
+        tree.link_at(l3).reset_edge(&tree.edge_at(e3));
+        tree.link_at(l7).reset_edge(&tree.edge_at(e0));
+        tree.link_at(l10).reset_edge(&tree.edge_at(e12));
+        tree.link_at(l25).reset_edge(&tree.edge_at(e3));
+
+        tree.link_at(l2).reset_outer(&tree.link_at(l7));
+        tree.link_at(l7).reset_outer(&tree.link_at(l2));
+        tree.link_at(l3).reset_outer(&tree.link_at(l25));
+        tree.link_at(l25).reset_outer(&tree.link_at(l3));
+        tree.link_at(l0).reset_outer(&tree.link_at(l10));
+        tree.link_at(l10).reset_outer(&tree.link_at(l0));
+
+        int c = 0;
+        for(auto it : preorder(tree.root_node())) {
+            if (it.link().index() != it.edge().secondary_link().index()
+                and it.node().index() != tree.root_node().index()) {
+                // revert edge direction
+                size_t lp = it.edge().primary_link().index();
+                size_t ls = it.edge().secondary_link().index();
+                it.edge().reset_primary_link(&tree.link_at(ls));
+                it.edge().reset_secondary_link(&tree.link_at(lp));
+            }
+            if (it.node().primary_link().index() != it.edge().primary_link().index()
+                and it.node().index() != tree.root_node().index()) {
+                it.node().reset_primary_link(&it.edge().secondary_link());
+            }
+            c++;
+            if (c > (int)tree.link_count()) {
+                std::cout << "SPR done: preorder endless loop detected" << std::endl;
+                validate_topology(tree);
+                std::cout << PrinterTable().print(tree);
+                //return false;
+                throw std::runtime_error("SPR not possible");
+            }
+        }
+
+        if (!validate_topology(tree)) {
+            std::cout << "SPR done: not valid" << std::endl;
+            std::cout << l0 << " "  << l2 << " "  << l3 << " "  << l7 << " "  << l10 << " "  << l25 << std::endl;
+            std::cout << PrinterTable().print(tree);
+            throw std::runtime_error("SPR not possible");
+            return false;
+        }
     }
 
     std::cout << "SPR done: success" << std::endl;

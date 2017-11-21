@@ -12,6 +12,7 @@
 
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
+#include "utils.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
@@ -21,30 +22,6 @@ std::uniform_int_distribution<int> distribution_ab;
 std::uniform_int_distribution<int> distribution_edges;
 
 
-size_t countEvalTrees(const std::string &evalTreesPath) {
-    size_t count = 0;
-    utils::InputStream instream(utils::make_unique<utils::FileInputSource>(evalTreesPath));
-    auto it = NewickInputIterator(instream);
-    while (it) {
-        count++;
-        ++it;
-    }
-    return count;
-}
-
-std::string print_help(TreeNode const& node,TreeEdge const& edge) {
-    std::string out = node.data<DefaultNodeData>().name;
-    out += " ";
-    out += std::to_string(node.index());
-    out += " --- (";
-    out += std::to_string(edge.index());
-    out += ": ";
-    out += std::to_string(edge.primary_link().index());
-    out += ",";
-    out += std::to_string(edge.secondary_link().index());
-    out += ")";
-    return out;
-}
 
 template<typename CINT>
 void doStuff(std::string pathToEvaluationTrees, int m, std::mt19937 mt) {
