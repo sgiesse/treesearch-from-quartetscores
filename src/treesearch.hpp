@@ -51,6 +51,60 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, std::mt19937 mt) {
     return global_best;
 }
 
+template<typename CINT>
+Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+    Tree tnew = tree;
+    qsc.recomputeScores(tnew, false);
+    double oldscore = sum_lqic_scores(qsc);
+
+    Tree global_best = tnew;
+    double global_max = oldscore;
+
+    while (true) {
+        double max = std::numeric_limits<double>::lowest();
+        int best = 0;
+        std::vector<Tree> nb_trees;
+        for (size_t i = 0; i < tnew.edge_count(); ++i) {
+            std::cout << i << "/" << tnew.edge_count() << "\n";
+            for(size_t j = i+1; j < tnew.edge_count(); ++j) {
+                Tree t(tnew);
+                if (spr(t, i, j))
+                    nb_trees.push_back(t);
+                if (nb_trees.size() >= 5) break;
+            }
+        }
+        std::cout << nb_trees.size() << " trees\n";
+        for (size_t i = 0; i < nb_trees.size(); ++i) {
+            std::cout << i << "/" << nb_trees.size() << "\n";
+            std::cout << "valid:  " << validate_topology(nb_trees[i]) << std::endl;
+            if (!validate_topology(nb_trees[i])) continue;
+            std::cout << PrinterCompact().print(nb_trees[i]);
+            qsc.recomputeScores(nb_trees[i], false);
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = i;
+            }
+        }
+        if (max > oldscore) {
+            tnew = nb_trees[best];
+            oldscore = max;
+            std::cout << "best: " << max << std::endl;
+            if (max > global_max) {
+                global_max = max;
+                global_best = tnew;
+            }
+        } else {
+            break;
+        }
+    }
+
+    qsc.recomputeScores(global_best, false);
+    std::cout << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    return global_best;
+}
+
 
 
 Tree random_tree_from_leaves(std::vector<std::string> leaves) {

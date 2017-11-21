@@ -10,7 +10,7 @@
 std::vector<Tree> nni(Tree& tree);
 Tree nni_a(Tree& tree, int i);
 Tree nni_b(Tree& tree, int i);
-Tree spr(Tree& tree, int i, int j);
+bool spr(Tree& tree, int i, int j);
 Tree make_random_nni_moves(Tree& tree, int n, std::uniform_int_distribution<int> distribution_edges, std::uniform_int_distribution<int> distribution_ab, std::mt19937 mt);
 std::vector<std::string> leafNames(const std::string &evalTreesPath);
 bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
@@ -18,24 +18,27 @@ void add_leaf(Tree& tree, size_t i, std::string lname);
 
 // -----------------------------
 
-Tree spr(Tree& tree, int pruneEdgeIdx, int regraftEdgeIdx) {
+bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
     size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
-
+    std::cout << "SPR " << pruneEdgeIdx << " " << regraftEdgeIdx << std::endl;
     size_t l0, l2, l3, l7, l10, l25;
 
     bool regraftInNext = false;
     for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().outer().next())) {
         if (it.link().index() == tree.link_at(pruneLinkIdx).next().next().index()) break;
-        if (it.link().index() == regraftLinkIdx) regraftInNext = true;
+        if (it.edge().index() == regraftEdgeIdx) regraftInNext = true;
     }
     bool regraftInNextNext = false;
     for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().next().outer().next())) {
-        if (it.link().index() == tree.link_at(pruneLinkIdx).next().index()) break;
-        if (it.link().index() == regraftLinkIdx) regraftInNextNext = true;
+        if (it.link().index() == tree.link_at(pruneLinkIdx).index()) break;
+        if (it.edge().index() == regraftEdgeIdx) regraftInNextNext = true;
     }
-    if (!regraftInNext and !regraftInNextNext)
-        throw std::runtime_error("SPR not possible");
+    if (!regraftInNext and !regraftInNextNext) {
+        std::cout << "SPR done: not possible" << std::endl;
+        return false;
+        //throw std::runtime_error("SPR not possible");
+    }
 
     if (regraftInNext) {
         // TODO test/verify if correct for all cases
@@ -55,6 +58,21 @@ Tree spr(Tree& tree, int pruneEdgeIdx, int regraftEdgeIdx) {
         l25 = tree.link_at(pruneLinkIdx).next().outer().index();
     }
 
+    std::cout << "SPR rearrange tree" << std::endl;
+    size_t e0 = tree.link_at(l2).edge().index();
+    size_t e3 = tree.link_at(l7).edge().index();
+    size_t e12 = tree.link_at(l0).edge().index();
+
+    tree.edge_at(e0).reset_secondary_link(&tree.link_at(l7));
+    tree.edge_at(e3).reset_primary_link(&tree.link_at(l3));
+    tree.edge_at(e3).reset_secondary_link(&tree.link_at(l25));
+    tree.edge_at(e12).reset_secondary_link(&tree.link_at(l10));
+
+    tree.link_at(l3).reset_edge(&tree.edge_at(e3));
+    tree.link_at(l7).reset_edge(&tree.edge_at(e0));
+    tree.link_at(l10).reset_edge(&tree.edge_at(e12));
+    tree.link_at(l25).reset_edge(&tree.edge_at(e3));
+
     tree.link_at(l2).reset_outer(&tree.link_at(l7));
     tree.link_at(l7).reset_outer(&tree.link_at(l2));
     tree.link_at(l3).reset_outer(&tree.link_at(l25));
@@ -62,8 +80,39 @@ Tree spr(Tree& tree, int pruneEdgeIdx, int regraftEdgeIdx) {
     tree.link_at(l0).reset_outer(&tree.link_at(l10));
     tree.link_at(l10).reset_outer(&tree.link_at(l0));
 
+    int c = 0;
+    for(auto it : preorder(tree.root_node())) {
+        if (it.link().index() != it.edge().secondary_link().index()
+            and it.node().index() != tree.root_node().index()) {
+            // revert edge direction
+            size_t lp = it.edge().primary_link().index();
+            size_t ls = it.edge().secondary_link().index();
+            it.edge().reset_primary_link(&tree.link_at(ls));
+            it.edge().reset_secondary_link(&tree.link_at(lp));
+        }
+        if (it.node().primary_link().index() != it.edge().primary_link().index()
+            and it.node().index() != tree.root_node().index()) {
+            it.node().reset_primary_link(&it.edge().secondary_link());
+        }
+        c++;
+        if (c > (int)tree.link_count()) {
+            std::cout << "SPR done: preorder endless loop detected" << std::endl;
+            validate_topology(tree);
+            std::cout << PrinterTable().print(tree);
+            //return false;
+            throw std::runtime_error("SPR not possible");
+            
+        }
+    }
 
-    return tree;
+    if (!validate_topology(tree)) {
+        std::cout << "SPR done: not valid" << std::endl;
+        return false;
+    }
+
+    std::cout << "SPR done: success" << std::endl;
+
+    return true;
 }
 
 std::vector<std::string> leafNames(const std::string &evalTreesPath) {

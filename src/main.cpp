@@ -32,48 +32,50 @@ size_t countEvalTrees(const std::string &evalTreesPath) {
     return count;
 }
 
+std::string print_help(TreeNode const& node,TreeEdge const& edge) {
+    std::string out = node.data<DefaultNodeData>().name;
+    out += " ";
+    out += std::to_string(node.index());
+    out += " --- (";
+    out += std::to_string(edge.index());
+    out += ": ";
+    out += std::to_string(edge.primary_link().index());
+    out += ",";
+    out += std::to_string(edge.secondary_link().index());
+    out += ")";
+    return out;
+}
+
 template<typename CINT>
 void doStuff(std::string pathToEvaluationTrees, int m, std::mt19937 mt) {
     Tree sa_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, mt, m);
-    std::cout << PrinterCompact().print(sa_tree);
+    std::cout << PrinterCompact().print(sa_tree, print_help);
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(sa_tree, pathToEvaluationTrees, m, true, true);
     std::cout << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
-    Tree tree = tree_search<CINT>(sa_tree, qsc, mt);
+    Tree tree = tree_search_with_spr<CINT>(sa_tree, qsc);
 }
 
-int main() {
+int main2() {
     Logging::log_to_stdout ();
-    //std::string newick = "(((E1,E2),(G,F)),(C,(A,B)),D);";
-    std::string newick = "(((A,B),C),((D,E),(F,G)),(H,(I,((J,K),L))));";
+    std::string newick = "(((A,B),C),D,((E1,E2),(F,G)));";
+    //std::string newick = "(((A,B),C),((D,E),(F,G)),(H,(I,((J,K),L))));";
     Tree tree = DefaultTreeNewickReader().from_string(newick);
 
-    std::function<std::string (TreeNode const& node,TreeEdge const& edge)> print_help;
-    print_help = [](TreeNode const& node,TreeEdge const& edge) {
-        std::string out = node.data<DefaultNodeData>().name;
-        out += " ";
-        out += std::to_string(node.index());
-        out += " --- (";
-        out += std::to_string(edge.index());
-        out += ": ";
-        out += std::to_string(edge.primary_link().index());
-        out += ",";
-        out += std::to_string(edge.secondary_link().index());
-        out += ")";
-        return out;
-    };
     std::cout << PrinterCompact().print(tree, print_help);
 
     size_t edge1 = find_node( tree, "D" )->link().outer().next().next().edge().index();
     size_t edge2 = find_node( tree, "G" )->link().edge().index();
-    edge1 = 18;
-    edge2 = 4;
+    //edge1 = 2;//20;
+    //edge2 = 8;//4;
     std::cout << edge1 << " " << edge2 << std::endl;
-    tree = spr(tree, edge1, edge2);
+    spr(tree, edge1, edge2);
+    std::cout << "valid:  " << validate_topology(tree) << std::endl;
     std::cout << PrinterCompact().print(tree, print_help);
+    return 0;
 }
 
-int main2() {
+int main() {
     Logging::log_to_stdout ();
 
     std::string pathToEvaluationTrees =
