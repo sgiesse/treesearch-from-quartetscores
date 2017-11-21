@@ -45,7 +45,9 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         }
 
         if (child or parent) {
-            std::cout << "SPR not possible: 2\n";
+            std::cout << "SPR not possible: 2 ";
+            if (child) std::cout << "child\n";
+            if (parent) std::cout << "parent\n";
             return false;
         }
 
@@ -159,7 +161,7 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         }
     }
 
-    std::cout << "SPR done: success" << std::endl;
+    //std::cout << "SPR done: success" << std::endl;
 
     return true;
 }

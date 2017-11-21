@@ -65,7 +65,23 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         int best = 0;
         std::vector<Tree> nb_trees;
         for (size_t i = 0; i < tnew.edge_count(); ++i) {
-            for(size_t j = i+1; j < tnew.edge_count(); ++j) {
+            std::vector<bool> spr_ok(tnew.edge_count(), true);
+            for (auto it : eulertour(tnew.edge_at(i).primary_link())) {
+                if (it.edge().index() == i and it.link().index() == it.edge().secondary_link().index()) break;
+                spr_ok[it.edge().index()] = false;
+            }
+            size_t j = i;
+            do {
+                spr_ok[j] = false;
+                j = tnew.edge_at(j).primary_link().node().link().edge().index();
+            } while (!tnew.edge_at(j).primary_link().node().is_root());
+            spr_ok[j] = false;
+
+            spr_ok[tnew.edge_at(i).primary_link().next().edge().index()] = false;
+            spr_ok[tnew.edge_at(i).primary_link().next().next().edge().index()] = false;
+
+            for(size_t j = 0; j < tnew.edge_count(); ++j) {
+                if (!spr_ok[j]) continue;
                 Tree t(tnew);
                 if (spr(t, i, j))
                     nb_trees.push_back(t);
@@ -73,9 +89,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         }
         std::cout << nb_trees.size() << " trees\n";
         for (size_t i = 0; i < nb_trees.size(); ++i) {
-            //std::cout << i << "/" << nb_trees.size() << " valid:  " << validate_topology(nb_trees[i]) << std::endl;
             if (!validate_topology(nb_trees[i])) continue;
-            //std::cout << PrinterCompact().print(nb_trees[i]);
             qsc.recomputeScores(nb_trees[i], false);
             double sum = sum_lqic_scores(qsc);
             if (sum > max) {
