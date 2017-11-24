@@ -11,7 +11,7 @@ std::vector<Tree> nni(Tree& tree);
 Tree nni_a(Tree& tree, int i);
 Tree nni_b(Tree& tree, int i);
 bool spr(Tree& tree, int i, int j);
-Tree make_random_nni_moves(Tree& tree, int n, std::uniform_int_distribution<int> distribution_edges, std::uniform_int_distribution<int> distribution_ab, std::mt19937 mt);
+Tree make_random_nni_moves(Tree& tree, int n);
 std::vector<std::string> leafNames(const std::string &evalTreesPath);
 bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
 void add_leaf(Tree& tree, size_t i, std::string lname);
@@ -371,15 +371,15 @@ Tree nni_b(Tree& tree, int i) {
     return tnew;
 }
 
-Tree make_random_nni_moves(Tree& tree, int n, std::uniform_int_distribution<int> distribution_edges, std::uniform_int_distribution<int> distribution_ab, std::mt19937 mt) {
+Tree make_random_nni_moves(Tree& tree, int n) {
     Tree tnew = tree;
     for (int j = 0; j < n; ++j) {
-        int i = distribution_edges(mt);
+        int i = Random::get_rand_int(0, tree.edge_count()-1);
         while (!(tnew.edge_at(i).primary_link().node().is_inner() && tnew.edge_at(i).secondary_link().node().is_inner())) {
-            i = distribution_edges(mt);
+            i = Random::get_rand_int(0, tree.edge_count()-1);
         }
 
-        int ab = distribution_ab(mt);
+        int ab = Random::get_rand_int(0, 1);
         if (ab == 0)
             tnew = nni_a(tnew, i);
         else

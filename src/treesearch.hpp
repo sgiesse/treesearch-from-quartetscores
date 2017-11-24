@@ -5,7 +5,7 @@
 #include "tree_operations.hpp"
 
 template<typename CINT>
-Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, std::mt19937 mt) {
+Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -36,9 +36,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, std::mt19937 mt) {
                 global_best = tnew;
             }
         } else if (restarts > 0) {
-            tnew = make_random_nni_moves(nb_trees[best], 10,
-                       std::uniform_int_distribution<int>(0,tree.edge_count()-1),
-                       std::uniform_int_distribution<int>(0,1), mt);
+            tnew = make_random_nni_moves(nb_trees[best], 10);
             restarts--;
         } else {
             break;
@@ -192,19 +190,19 @@ Tree random_tree_from_leaves(std::vector<std::string> leaves) {
     return make_random_nni_moves(tree, 10, distribution_edges, distribution_ab, mt);*/
 }
 
-Tree random_tree(const std::string &evalTreesPath, std::mt19937 mt) {
+Tree random_tree(const std::string &evalTreesPath) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
 
-    std::shuffle(leaves.begin(), leaves.end(), mt);
+    std::shuffle(leaves.begin(), leaves.end(), Random::mt);
     return random_tree_from_leaves(leaves);
 }
 
 template<typename CINT>
-Tree stepwise_addition_tree(const std::string &evalTreesPath, std::mt19937 mt, size_t m) {
+Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
-    std::shuffle(leaves.begin(), leaves.end(), mt);
+    std::shuffle(leaves.begin(), leaves.end(), Random::mt);
 
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();

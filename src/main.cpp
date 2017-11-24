@@ -8,7 +8,6 @@
 
 #include <string>
 #include <limits>
-#include <random>
 
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
@@ -17,20 +16,16 @@
 using namespace genesis;
 using namespace genesis::tree;
 
-std::mt19937 mt;
-std::uniform_int_distribution<int> distribution_ab;
-std::uniform_int_distribution<int> distribution_edges;
-
-
-
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::mt19937 mt) {
-    Tree sa_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, mt, m);
+void doStuff(std::string pathToEvaluationTrees, int m) {
+    //Tree sa_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, mt, m);
+    Tree sa_tree = random_tree(pathToEvaluationTrees);
     std::cout << PrinterCompact().print(sa_tree, print_help);
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(sa_tree, pathToEvaluationTrees, m, true, true);
     std::cout << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
-    Tree tree = tree_search_with_spr<CINT>(sa_tree, qsc);
+    //Tree tree = tree_search_with_spr<CINT>(sa_tree, qsc);
+    Tree tree = tree_search<CINT>(sa_tree, qsc);
 }
 
 int main2() {
@@ -62,18 +57,13 @@ int main() {
 
     Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
 
-    std::random_device rd;
-    mt = std::mt19937(rd());
-    distribution_ab = std::uniform_int_distribution<int>(0,1);
-    distribution_edges = std::uniform_int_distribution<int>(0,ref_tree.edge_count()-1);
-
     std::cout << PrinterCompact().print( ref_tree );
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
-    if (m < (size_t(1) << 8)) doStuff<uint8_t>(pathToEvaluationTrees, m, mt);
-    else if (m < (size_t(1) << 16)) doStuff<uint16_t>(pathToEvaluationTrees, m, mt);
-    else if (m < (size_t(1) << 32)) doStuff<uint32_t>(pathToEvaluationTrees, m, mt);
-    else doStuff<uint64_t>(pathToEvaluationTrees, m, mt);
+    if (m < (size_t(1) << 8)) doStuff<uint8_t>(pathToEvaluationTrees, m);
+    else if (m < (size_t(1) << 16)) doStuff<uint16_t>(pathToEvaluationTrees, m);
+    else if (m < (size_t(1) << 32)) doStuff<uint32_t>(pathToEvaluationTrees, m);
+    else doStuff<uint64_t>(pathToEvaluationTrees, m);
 
     return 0;
 }

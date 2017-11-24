@@ -36,4 +36,29 @@ std::string print_help(TreeNode const& node,TreeEdge const& edge) {
     return out;
 }
 
+
+namespace Random {
+    std::mt19937 mt;
+    bool initialized = false;
+
+    void init() {
+        std::random_device rd;
+        mt = std::mt19937(rd());
+        initialized = true;
+    }
+
+    void seed(int s) {
+        mt.seed(s);
+        initialized = true;
+    }
+
+    int get_rand_int(int a, int b) {
+        if (!initialized) {
+            init();
+        }
+        std::uniform_int_distribution<int> distr(a,b);
+        return distr(mt);
+    }
+}
+
 #endif
