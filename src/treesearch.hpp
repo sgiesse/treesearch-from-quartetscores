@@ -183,11 +183,6 @@ Tree random_tree_from_leaves(std::vector<std::string> leaves) {
     // Genesis Tree from newick string
     Tree tree = DefaultTreeNewickReader().from_string(newick);
     return tree;
-/*
-    // random NNI moves
-    std::uniform_int_distribution<int> distribution_ab = std::uniform_int_distribution<int>(0,1);
-    std::uniform_int_distribution<int> distribution_edges = std::uniform_int_distribution<int>(0,tree.edge_count()-1);
-    return make_random_nni_moves(tree, 10, distribution_edges, distribution_ab, mt);*/
 }
 
 Tree random_tree(const std::string &evalTreesPath) {
@@ -241,8 +236,6 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
             add_leaf(tnew, i, lname);
 
             std::cout << "valid tnew:  " << validate_topology(tnew) << std::endl;
-            //std::cout << PrinterTable().print(tnew);
-            //std::cout << PrinterCompact().print(tnew);
 
             qsc.recomputeScores(tnew, false);
             double sum = sum_lqic_scores(qsc);
