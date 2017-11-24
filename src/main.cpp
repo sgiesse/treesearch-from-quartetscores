@@ -6,6 +6,8 @@
 
 #include "QuartetScoreComputer.hpp"
 
+#include "tclap/CmdLine.h"
+
 #include <string>
 #include <limits>
 
@@ -28,13 +30,26 @@ void doStuff(std::string pathToEvaluationTrees, int m) {
     Tree tree = tree_search<CINT>(start_tree, qsc);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     Logging::log_to_stdout ();
 
-    std::string pathToEvaluationTrees =
-        "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre";
-    std::string pathToReferenceTree =
-        "../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre";
+    std::string pathToEvaluationTrees;
+    std::string pathToReferenceTree;
+
+    try {
+        TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
+        TCLAP::ValueArg<std::string> refArg("r", "ref", "Path to the reference tree", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre", "string");
+        TCLAP::ValueArg<std::string> evalArg("e", "eval", "Path to the evaluation trees", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", "string");
+        cmd.add(refArg);
+        cmd.add(evalArg);
+        cmd.parse(argc, argv);
+
+        pathToReferenceTree = refArg.getValue();
+        pathToEvaluationTrees = evalArg.getValue();
+    } catch (TCLAP::ArgException &e) {
+        std::cerr << "ERROR: " << e.error() << " for arg " << e.argId() << std::endl;
+        return 1;
+    }
 
     Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
 

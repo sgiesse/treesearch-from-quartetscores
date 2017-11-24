@@ -4,3 +4,6 @@
 [submodule "QuartetScores"]
 	path = QuartetScores
 	url = https://github.com/algomaus/QuartetScores.git
+[submodule "tclap"]
+	path = tclap
+	url = ./tclap
