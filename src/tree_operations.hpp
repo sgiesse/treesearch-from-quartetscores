@@ -21,11 +21,11 @@ void add_leaf(Tree& tree, size_t i, std::string lname);
 bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
     size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
-    //std::cout << "SPR " << pruneEdgeIdx << " " << regraftEdgeIdx << std::endl;
+    LOG_DBG << "SPR(" << pruneEdgeIdx << " " << regraftEdgeIdx << ")" << std::endl;
     size_t l0, l2, l3, l7, l10, l25;
 
     if (tree.edge_at(pruneEdgeIdx).primary_link().node().index() == tree.edge_at(regraftEdgeIdx).primary_link().node().index()) {
-        std::cout << "SPR not possible: 1\n";
+        LOG_WARN << "SPR not possible: 1\n";
         return false;
     }
 
@@ -45,9 +45,9 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         }
 
         if (child or parent) {
-            std::cout << "SPR not possible: 2 ";
-            if (child) std::cout << "child\n";
-            if (parent) std::cout << "parent\n";
+            LOG_WARN << "SPR not possible: 2 ";
+            if (child) { LOG_WARN << "child\n"; }
+            if (parent) { LOG_WARN << "parent\n"; }
             return false;
         }
 
@@ -66,8 +66,8 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         tree.link_at(lps).reset_outer(&tree.link_at(regraftLinkIdx));
 
         if (!validate_topology(tree)) {
-            std::cout << "SPR done: not valid" << std::endl;
-            std::cout << PrinterTable().print(tree);
+            LOG_ERR << "SPR done: not valid" << std::endl;
+            LOG_ERR << PrinterTable().print(tree);
             throw std::runtime_error("SPR not possible");
             return false;
         }
@@ -86,7 +86,7 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
             if (it.edge().index() == regraftEdgeIdx) regraftInNextNext = true;
         }
         if (!regraftInNext and !regraftInNextNext) {
-            std::cout << "SPR not possible: 3" << std::endl;
+            LOG_INFO << "SPR not possible: 3" << std::endl;
             return false;
             //throw std::runtime_error("SPR not possible");
         }
@@ -144,24 +144,24 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
             }
             c++;
             if (c > (int)tree.link_count()) {
-                std::cout << "SPR done: preorder endless loop detected" << std::endl;
+                LOG_ERR << "SPR done: preorder endless loop detected" << std::endl;
                 validate_topology(tree);
-                std::cout << PrinterTable().print(tree);
+                LOG_ERR << PrinterTable().print(tree);
                 //return false;
                 throw std::runtime_error("SPR not possible");
             }
         }
 
         if (!validate_topology(tree)) {
-            std::cout << "SPR done: not valid" << std::endl;
-            std::cout << l0 << " "  << l2 << " "  << l3 << " "  << l7 << " "  << l10 << " "  << l25 << std::endl;
-            std::cout << PrinterTable().print(tree);
+            LOG_WARN << "SPR done: not valid" << std::endl;
+            LOG_WARN << l0 << " "  << l2 << " "  << l3 << " "  << l7 << " "  << l10 << " "  << l25 << std::endl;
+            LOG_WARN << PrinterTable().print(tree);
             throw std::runtime_error("SPR not possible");
             return false;
         }
     }
 
-    //std::cout << "SPR done: success" << std::endl;
+    LOG_DBG << "SPR done: success" << std::endl;
 
     return true;
 }
@@ -266,11 +266,11 @@ std::vector<Tree> nni(Tree& tree) {
             continue; //edge is no internode
 
         Tree tnew = nni_a(tree, i);
-        //std::cout << "valid tnew1:  " << validate_topology(tnew) << std::endl;
+        LOG_DBG << "valid tnew1:  " << validate_topology(tnew) << std::endl;
         trees.push_back(tnew);
 
         Tree tnew2 = nni_b(tree, i);
-        //std::cout << "valid tnew2:  " << validate_topology(tnew2) << std::endl;
+        LOG_DBG << "valid tnew2:  " << validate_topology(tnew2) << std::endl;
         trees.push_back(tnew2);
     }
     return trees;

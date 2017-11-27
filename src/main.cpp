@@ -22,16 +22,22 @@ template<typename CINT>
 void doStuff(std::string pathToEvaluationTrees, int m) {
     Tree start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
     //Tree start_tree = random_tree(pathToEvaluationTrees);
-    std::cout << PrinterCompact().print(start_tree, print_help);
+    LOG_INFO << PrinterCompact().print(start_tree, print_help);
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
-    std::cout << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
     //Tree tree = tree_search_with_spr<CINT>(start_tree, qsc);
     Tree tree = tree_search<CINT>(start_tree, qsc);
 }
 
 int main(int argc, char* argv[]) {
     Logging::log_to_stdout ();
+
+    //kNone,kError,kWarning,kInfo,kProgress,kDebug,kDebug4
+
+    LOG_SCOPE_LEVEL(utils::Logging::kDebug);
+
+    LOG_BOLD << "Compute quartet score based Tree" << std::endl;
 
     std::string pathToEvaluationTrees;
     std::string pathToReferenceTree;
@@ -53,13 +59,15 @@ int main(int argc, char* argv[]) {
 
     Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
 
-    std::cout << PrinterCompact().print(ref_tree);
+    LOG_INFO << PrinterCompact().print(ref_tree);
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8)) doStuff<uint8_t>(pathToEvaluationTrees, m);
     else if (m < (size_t(1) << 16)) doStuff<uint16_t>(pathToEvaluationTrees, m);
     else if (m < (size_t(1) << 32)) doStuff<uint32_t>(pathToEvaluationTrees, m);
     else doStuff<uint64_t>(pathToEvaluationTrees, m);
+
+    LOG_BOLD << "Done" << std::endl;
 
     return 0;
 }

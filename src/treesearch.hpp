@@ -30,7 +30,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         if (max > oldscore) {
             tnew = nb_trees[best];
             oldscore = max;
-            std::cout << "best: " << max << std::endl;
+            LOG_INFO << "best: " << max << std::endl;
             if (max > global_max) {
                 global_max = max;
                 global_best = tnew;
@@ -44,7 +44,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     }
 
     qsc.recomputeScores(global_best, false);
-    std::cout << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
 
     return global_best;
 }
@@ -85,7 +85,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
                     nb_trees.push_back(t);
             }
         }
-        std::cout << nb_trees.size() << " trees\n";
+        LOG_DBG << nb_trees.size() << " trees\n";
         for (size_t i = 0; i < nb_trees.size(); ++i) {
             if (!validate_topology(nb_trees[i])) continue;
             qsc.recomputeScores(nb_trees[i], false);
@@ -98,7 +98,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         if (max > oldscore) {
             tnew = nb_trees[best];
             oldscore = max;
-            std::cout << "best: " << max << std::endl;
+            LOG_INFO << "best: " << max << std::endl;
             if (max > global_max) {
                 global_max = max;
                 global_best = tnew;
@@ -109,7 +109,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     }
 
     qsc.recomputeScores(global_best, false);
-    std::cout << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
 
     return global_best;
 }
@@ -178,7 +178,7 @@ Tree random_tree_from_leaves(std::vector<std::string> leaves) {
     };
     rec_make_newick(root, newick);
     newick += ';';
-    std::cout << newick << std::endl;
+    LOG_DBG << newick << std::endl;
 
     // Genesis Tree from newick string
     Tree tree = DefaultTreeNewickReader().from_string(newick);
@@ -205,7 +205,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
 
     Tree precalc_tree(tree);
     for (int i = leaves.size()-1; i >= 0; --i) {
-        std::cout << leaves[i] << std::endl;
+        LOG_DBG << leaves[i] << std::endl;
         for (size_t j = 0; j < precalc_tree.edge_count(); ++j) {
             auto const& edge = precalc_tree.edge_at(j);
             if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
@@ -221,12 +221,12 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
     while (!leaves.empty()) {
         std::string lname = leaves.back();
         leaves.pop_back();
-        std::cout << "insert " << lname << std::endl;
+        LOG_DBG << "insert " << lname << std::endl;
 
         Tree best;
         double max = std::numeric_limits<double>::lowest();
         for (size_t i = 0; i < tree.edge_count(); ++i) {
-            std::cout << "leaves left: " << leaves.size() << " edge " << i << "/" << tree.edge_count() << std::endl;
+            LOG_DBG << "leaves left: " << leaves.size() << " edge " << i << "/" << tree.edge_count() << std::endl;
 
             auto const& edge = tree.edge_at(i);
             if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
@@ -235,11 +235,11 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
             Tree tnew = Tree(tree);
             add_leaf(tnew, i, lname);
 
-            std::cout << "valid tnew:  " << validate_topology(tnew) << std::endl;
+            LOG_DBG << "valid tnew:  " << validate_topology(tnew) << std::endl;
 
             qsc.recomputeScores(tnew, false);
             double sum = sum_lqic_scores(qsc);
-            std::cout << "sum lqic " << sum << std::endl;
+            LOG_DBG << "sum lqic " << sum << std::endl;
             if (sum > max) {
                 best = tnew;
                 max = sum;
@@ -251,7 +251,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
             }
 
         }
-        std::cout << "choose tree to continue with sum lqic " << max << std::endl;
+        LOG_DBG << "choose tree to continue with sum lqic " << max << std::endl;
         tree = best;
     }
 
