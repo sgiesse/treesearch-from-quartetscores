@@ -20,15 +20,26 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m) {
-    Tree start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
-    //Tree start_tree = random_tree(pathToEvaluationTrees);
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm) {
+    Tree start_tree;
+    if (startTreeMethod == "stepwiseaddition")
+        start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
+    else if (startTreeMethod == "random")
+        start_tree = random_tree(pathToEvaluationTrees);
+    else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
+
     LOG_INFO << PrinterCompact().print(start_tree, print_help);
+
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
     LOG_INFO << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
-    //Tree tree = tree_search_with_spr<CINT>(start_tree, qsc);
-    Tree tree = tree_search<CINT>(start_tree, qsc);
+
+    Tree final_tree;
+    if (algorithm == "nni")
+        final_tree = tree_search<CINT>(start_tree, qsc);
+    else if (algorithm == "spr")
+        final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+    else  { LOG_ERR << algorithm << " is unknown algorithm"; }
 }
 
 int main(int argc, char* argv[]) {
@@ -38,6 +49,8 @@ int main(int argc, char* argv[]) {
 
     std::string pathToEvaluationTrees;
     std::string pathToReferenceTree;
+    std::string startTreeMethod;
+    std::string algorithm;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -51,21 +64,34 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> logLevelArg("l", "loglevel", "Log Level", false, "Info" , &constraintLogLevels);
         cmd.add(logLevelArg);
 
+        std::vector<std::string> allowedStartTreeMethods = { "random", "stepwiseaddition" };
+        TCLAP::ValuesConstraint<std::string> constraintStart(allowedStartTreeMethods);
+        TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
+        cmd.add(startTreeMethodArg);
+
+        std::vector<std::string> allowedAlgorithms = { "nni", "spr" };
+        TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
+        TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
+        cmd.add(algorithmArg);
+
         cmd.parse(argc, argv);
 
         pathToReferenceTree = refArg.getValue();
         pathToEvaluationTrees = evalArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
-        if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
-        if (logLevelArg.getValue() == "Warning") Logging::max_level(utils::Logging::kWarning);
-        if (logLevelArg.getValue() == "Info") Logging::max_level(utils::Logging::kInfo);
-        if (logLevelArg.getValue() == "Progress") Logging::max_level(utils::Logging::kProgress);
-        if (logLevelArg.getValue() == "Debug") Logging::max_level(utils::Logging::kDebug);
-        if (logLevelArg.getValue() == "Debug1") Logging::max_level(utils::Logging::kDebug1);
-        if (logLevelArg.getValue() == "Debug2") Logging::max_level(utils::Logging::kDebug2);
-        if (logLevelArg.getValue() == "Debug3") Logging::max_level(utils::Logging::kDebug3);
-        if (logLevelArg.getValue() == "Debug4") Logging::max_level(utils::Logging::kDebug4);
+        else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
+        else if (logLevelArg.getValue() == "Warning") Logging::max_level(utils::Logging::kWarning);
+        else if (logLevelArg.getValue() == "Info") Logging::max_level(utils::Logging::kInfo);
+        else if (logLevelArg.getValue() == "Progress") Logging::max_level(utils::Logging::kProgress);
+        else if (logLevelArg.getValue() == "Debug") Logging::max_level(utils::Logging::kDebug);
+        else if (logLevelArg.getValue() == "Debug1") Logging::max_level(utils::Logging::kDebug1);
+        else if (logLevelArg.getValue() == "Debug2") Logging::max_level(utils::Logging::kDebug2);
+        else if (logLevelArg.getValue() == "Debug3") Logging::max_level(utils::Logging::kDebug3);
+        else if (logLevelArg.getValue() == "Debug4") Logging::max_level(utils::Logging::kDebug4);
+
+        startTreeMethod = startTreeMethodArg.getValue();
+        algorithm = algorithmArg.getValue();
     } catch (TCLAP::ArgException &e) {
         std::cerr << "ERROR: " << e.error() << " for arg " << e.argId() << std::endl;
         return 1;
@@ -76,10 +102,14 @@ int main(int argc, char* argv[]) {
     LOG_INFO << PrinterCompact().print(ref_tree);
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
-    if (m < (size_t(1) << 8)) doStuff<uint8_t>(pathToEvaluationTrees, m);
-    else if (m < (size_t(1) << 16)) doStuff<uint16_t>(pathToEvaluationTrees, m);
-    else if (m < (size_t(1) << 32)) doStuff<uint32_t>(pathToEvaluationTrees, m);
-    else doStuff<uint64_t>(pathToEvaluationTrees, m);
+    if (m < (size_t(1) << 8))
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+    else if (m < (size_t(1) << 16))
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+    else if (m < (size_t(1) << 32))
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+    else
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
 
     LOG_BOLD << "Done" << std::endl;
 
