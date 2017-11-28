@@ -124,42 +124,29 @@ Tree random_tree_from_leaves(std::vector<std::string> leaves) {
     };
 
     // Root, 3xchilds, 2x childs per internal node recursively
-    int L = leaves.size(); // number of leaves
-    int N = 2*L-2;
-    int D = log2((N-1)/3)+1;
     SimpleNode root;
     root.children.push_back(SimpleNode());
     root.children.push_back(SimpleNode());
     root.children.push_back(SimpleNode());
-    N -= 4;
 
-    std::function<void(SimpleNode&, int)> buildTree;
-    buildTree = [&](SimpleNode& node, int d) {
-        for (size_t i = 0; i < node.children.size(); ++i) {
-            // Decide if this is leaf or inner node
-            bool leaf = L==N or d==D;
-            if (leaf) {
-                std::string _name = leaves.back();
-                leaves.pop_back();
-                node.children[i].name = _name;
-                L--;
-            } else {
-                if (N >= 2) {
-                    N-=2;
-                    node.children[i].children.push_back(SimpleNode());
-                    node.children[i].children.push_back(SimpleNode());
-                    buildTree(node.children[i],d+1);
-                }
-                else {
-                    L--;
-                    node.name = leaves.back();
-                    leaves.pop_back();
-                }
-            }
+    std::function<void(SimpleNode&, int, int)> buildTree;
+    buildTree = [&](SimpleNode& node, int a, int b) {
+        if (b-a == 1) {
+            // leaf
+            node.name = leaves[a];
+        } else {
+            node.children.push_back(SimpleNode());
+            node.children.push_back(SimpleNode());
+            buildTree(node.children[0],a,(b+a)/2);
+            buildTree(node.children[1],(b+a)/2,b);
         }
     };
 
-    buildTree(root, 1);
+    int a = leaves.size()/3;
+    int b = 2*a;
+    buildTree(root.children[0], 0, a);
+    buildTree(root.children[1], a, b);
+    buildTree(root.children[2], b, leaves.size());
 
     // Print tree to newick format string
     std::string newick;

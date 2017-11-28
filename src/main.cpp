@@ -28,7 +28,29 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         start_tree = random_tree(pathToEvaluationTrees);
     else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
 
-    LOG_INFO << PrinterCompact().print(start_tree, print_help);
+    LOG_INFO << PrinterCompact().print(start_tree);
+
+    if (!validate_topology(start_tree)) {
+        LOG_WARN << "Topology of start tree is not valid!";
+    } else { LOG_INFO << "Topology of start tree is ok!"; }
+
+    std::vector<std::string> st_leafNames;
+    for (size_t i = 0; i < start_tree.node_count(); ++i) {
+        if (start_tree.node_at(i).is_leaf())
+            st_leafNames.push_back(start_tree.node_at(i).data<DefaultNodeData>().name);
+    }
+    std::sort(st_leafNames.begin(), st_leafNames.end());
+    std::vector<std::string> leaves = leafNames(pathToEvaluationTrees);
+    std::sort(leaves.begin(), leaves.end());
+    if (leaves.size() != st_leafNames.size()) {
+        throw std::runtime_error("size of set of leaf names is wrong");
+    }
+    for (size_t i = 0; i < leaves.size(); ++i) {
+        if (leaves[i] != st_leafNames[i]){
+            LOG_ERR << leaves[i] << " != " << st_leafNames[i] << std::endl;
+            throw std::runtime_error("leaf name incorrect");
+        }
+    }
 
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
@@ -97,9 +119,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
+    //Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
 
-    LOG_INFO << PrinterCompact().print(ref_tree);
+    //LOG_INFO << PrinterCompact().print(ref_tree);
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
