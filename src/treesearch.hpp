@@ -176,7 +176,7 @@ Tree random_tree(const std::string &evalTreesPath) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
 
-    std::shuffle(leaves.begin(), leaves.end(), Random::mt);
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
     return random_tree_from_leaves(leaves);
 }
 
@@ -184,7 +184,7 @@ template<typename CINT>
 Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
     // Get set of node names
     std::vector<std::string> leaves = leafNames(evalTreesPath);
-    std::shuffle(leaves.begin(), leaves.end(), Random::mt);
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
 
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();

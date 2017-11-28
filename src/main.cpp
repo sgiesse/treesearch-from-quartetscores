@@ -54,7 +54,7 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
 
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
-    LOG_INFO << "Sum lqic stepwise addition Tree: " << sum_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum lqic start Tree: " << sum_lqic_scores(qsc) << std::endl;
 
     Tree final_tree;
     if (algorithm == "nni")

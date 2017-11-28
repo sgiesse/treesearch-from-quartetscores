@@ -37,9 +37,12 @@ std::string print_help(TreeNode const& node,TreeEdge const& edge) {
 }
 
 
-namespace Random {
+namespace {
     std::mt19937 mt;
     bool initialized = false;
+}
+
+namespace Random {
 
     void init() {
         std::random_device rd;
@@ -58,6 +61,11 @@ namespace Random {
         }
         std::uniform_int_distribution<int> distr(a,b);
         return distr(mt);
+    }
+
+    std::mt19937 getMT() {
+        if (!initialized) init();
+        return mt;
     }
 }
 
