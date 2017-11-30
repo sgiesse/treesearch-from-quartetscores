@@ -15,6 +15,7 @@
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
 #include "utils.hpp"
+#include "spr_iterator.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
@@ -61,7 +62,12 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         final_tree = tree_search<CINT>(start_tree, qsc);
     else if (algorithm == "spr")
         final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+    else if (algorithm == "combo")
+        final_tree = tree_search_combo<CINT>(start_tree, qsc);
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
+
+    qsc.recomputeScores(final_tree, false);
+    LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -91,7 +97,7 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
         cmd.add(startTreeMethodArg);
 
-        std::vector<std::string> allowedAlgorithms = { "nni", "spr" };
+        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo" };
         TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
         TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
         cmd.add(algorithmArg);
