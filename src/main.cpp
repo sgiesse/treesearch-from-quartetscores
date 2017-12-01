@@ -22,14 +22,18 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree) {
     Tree start_tree;
-    if (startTreeMethod == "stepwiseaddition")
-        start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
-    else if (startTreeMethod == "random")
-        start_tree = random_tree(pathToEvaluationTrees);
-    else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
-
+    if (pathToStartTree == "") {
+        if (startTreeMethod == "stepwiseaddition")
+            start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
+        else if (startTreeMethod == "random")
+            start_tree = random_tree(pathToEvaluationTrees);
+        else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
+    } else {
+        LOG_INFO << "Read start tree from file";
+        start_tree = DefaultTreeNewickReader().from_file(pathToStartTree);
+    }
     LOG_INFO << PrinterCompact().print(start_tree);
 
     if (!validate_topology(start_tree)) {
@@ -65,6 +69,8 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
     else if (algorithm == "combo")
         final_tree = tree_search_combo<CINT>(start_tree, qsc);
+    else if (algorithm == "no")
+        final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
 
     qsc.recomputeScores(final_tree, false);
@@ -84,6 +90,7 @@ int main(int argc, char* argv[]) {
     std::string startTreeMethod;
     std::string algorithm;
     std::string pathToOutput;
+    std::string pathToStartTree;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -102,7 +109,7 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
         cmd.add(startTreeMethodArg);
 
-        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo" };
+        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no" };
         TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
         TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
         cmd.add(algorithmArg);
@@ -110,11 +117,15 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> outArg("o", "outfile", "Path to output file", false, "../../out/out.tre", "string");
         cmd.add(outArg);
 
+        TCLAP::ValueArg<std::string> startTreeArg("t", "starttree", "Path to start tree file", false, "", "string");
+        cmd.add(startTreeArg);
+
         cmd.parse(argc, argv);
 
         pathToReferenceTree = refArg.getValue();
         pathToEvaluationTrees = evalArg.getValue();
         pathToOutput = outArg.getValue();
+        pathToStartTree = startTreeArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -140,13 +151,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
 
     LOG_BOLD << "Done" << std::endl;
 
