@@ -34,3 +34,8 @@
 # Build output directories
 bin/
 build/
+
+*.TEST
+eval/__pycache__/
+eval/env/
+eval/trees

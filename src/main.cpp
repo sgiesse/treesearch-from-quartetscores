@@ -3,6 +3,7 @@
 #include <genesis/tree/printer/table.hpp>
 #include <genesis/tree/function/operators.hpp>
 #include <genesis/utils/core/logging.hpp>
+#include <genesis/utils/core/options.hpp>
 
 #include "QuartetScoreComputer.hpp"
 
@@ -21,7 +22,7 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput) {
     Tree start_tree;
     if (startTreeMethod == "stepwiseaddition")
         start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
@@ -68,10 +69,13 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
 
     qsc.recomputeScores(final_tree, false);
     LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    DefaultTreeNewickWriter().to_file(final_tree, pathToOutput);
 }
 
 int main(int argc, char* argv[]) {
     Logging::log_to_stdout ();
+    Options::get().allow_file_overwriting(true);
 
     LOG_BOLD << "Compute quartet score based Tree" << std::endl;
 
@@ -79,12 +83,13 @@ int main(int argc, char* argv[]) {
     std::string pathToReferenceTree;
     std::string startTreeMethod;
     std::string algorithm;
+    std::string pathToOutput;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
         TCLAP::ValueArg<std::string> refArg("r", "ref", "Path to the reference tree", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre", "string");
         cmd.add(refArg);
-        TCLAP::ValueArg<std::string> evalArg("e", "eval", "Path to the evaluation trees", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_partial_only.tre", "string");
+        TCLAP::ValueArg<std::string> evalArg("e", "eval", "Path to the evaluation trees", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre", "string");
         cmd.add(evalArg);
 
         std::vector<std::string> allowedLogLevels = { "None","Error","Warning","Info","Progress","Debug","Debug1","Debug2","Debug3","Debug4" };
@@ -102,10 +107,14 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
         cmd.add(algorithmArg);
 
+        TCLAP::ValueArg<std::string> outArg("o", "outfile", "Path to output file", false, "../../out/out.tre", "string");
+        cmd.add(outArg);
+
         cmd.parse(argc, argv);
 
         pathToReferenceTree = refArg.getValue();
         pathToEvaluationTrees = evalArg.getValue();
+        pathToOutput = outArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -131,13 +140,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput);
 
     LOG_BOLD << "Done" << std::endl;
 
