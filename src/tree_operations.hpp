@@ -161,7 +161,7 @@ bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         }
     }
 
-    LOG_DBG << "SPR done: success" << std::endl;
+    LOG_DBG4 << "SPR done: success" << std::endl;
 
     return true;
 }
@@ -255,9 +255,6 @@ void add_leaf(Tree& tree, size_t i, std::string lname) {
     tree.link_at(l9).reset_edge(&tree.link_at(l2).edge());
 }
 
-
-
-
 std::vector<Tree> nni(Tree& tree) {
     std::vector<Tree> trees;
     for(size_t i = 0; i < tree.edge_count(); ++i ) {
@@ -266,12 +263,14 @@ std::vector<Tree> nni(Tree& tree) {
             continue; //edge is no internode
 
         Tree tnew = nni_a(tree, i);
-        LOG_DBG << "valid tnew1:  " << validate_topology(tnew) << std::endl;
         trees.push_back(tnew);
 
         Tree tnew2 = nni_b(tree, i);
-        LOG_DBG << "valid tnew2:  " << validate_topology(tnew2) << std::endl;
         trees.push_back(tnew2);
+
+        if (!validate_topology(tnew) or !validate_topology(tnew2)) {
+            throw std::runtime_error("NNI produced invalid topology!");
+        }
     }
     return trees;
 }

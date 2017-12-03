@@ -21,20 +21,20 @@ data = [('../../data/ICTC-master/data/Empirical/Avian/avian_all.tre',
         ('../../data/simulated_datasets_for_sarah/model1002M6E.n01.estimated_gene.trees',
          '../../data/simulated_datasets_for_sarah/model1002M6E.n01.true_species.tre')]
 
-data = data[1:2]
+data = data[1:3]
 
 common_args = [TREESEARCH_EXCTBL, '-l', 'Info']
 
 starttrees = [['-s', 'random'],['-s','stepwiseaddition']]
+#starttrees = starttrees[1:]
 file_starttree = '../../out/starttree.tre'
 
 algo1 = ['-a', 'nni']
 algo2 = ['-a', 'spr']
 algo3 = ['-a', 'combo']
 algos = [algo1, algo2, algo3]
-algos = [algo1]
 
-repeat = 3
+repeat = 1
 
 def parse_lqic(out):
     outString = out.decode("UTF-8")
@@ -45,8 +45,8 @@ def parse_lqic(out):
         lqic = float(outString[start:end])
         return lqic
 
-def make_starttree(file_st, args_st):
-    process = subprocess.Popen([TREESEARCH_EXCTBL, '-a', 'no', '-o', file_st]+args_st,
+def make_starttree(d, file_st, args_st):
+    process = subprocess.Popen([TREESEARCH_EXCTBL,'-e', d[0], '-r', d[1],  '-a', 'no', '-o', file_st]+args_st,
                                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
     lqic = parse_lqic(out)
@@ -70,11 +70,12 @@ df_col_runtime = []
 df_col_lqic = []
 df_col_dataset = []
 df_col_starttree = []
+df_col_algo = []
 df_col_rf = []
 df_col_rfnorm = []
 for d in data:
     for args_st in starttrees:
-        make_starttree(file_starttree, args_st)
+        make_starttree(d, file_starttree, args_st)
         for algo in algos:
             for i in range(repeat):
                 (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
@@ -85,18 +86,19 @@ for d in data:
 
                 df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
                 df_col_starttree.append(args_st[1])
+                df_col_algo.append(algo[1])
                 df_col_runtime.append(runtime)
                 df_col_lqic.append(lqic)
                 df_col_rf.append(rf_plain)
                 df_col_rfnorm.append(rf_normalized)
 
-df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
+df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
 print(df.to_string())
 
 #print(df.groupby(['Dataset', 'StartTree']).mean())
 #print(df.groupby(['Dataset', 'StartTree']).var())
 
-df_stats = df.groupby(['Dataset', 'StartTree']).agg(['min', 'max', 'mean', 'var', 'std'])
+df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['min', 'max', 'mean', 'var', 'std'])
 
 print(df_stats)
 #df_stats.to_csv('df.csv')

@@ -61,6 +61,7 @@ Tree SPRtree::get(){
 
 void SPRtree::next_i() {
     i++;
+    LOG_DBG << "SPRtree::next_i() --> " << i;
     if (i < tree.edge_count()) fill_spr_ok_for_i();
 }
 
@@ -109,7 +110,6 @@ const SPRtree& SPRiterator::operator*() const {
 void SPRiterator::jump_to_next() {
     while (true) {
         j++;
-        LOG_DBG << j << " ";
         if (j >= tree.tree.edge_count()) {
             i++; j = 0;
             if (i >= tree.tree.edge_count()) {
@@ -141,7 +141,8 @@ bool SPRiterator::operator==(const SPRiterator& rhs) const {
 }
 
 bool SPRiterator::operator!=(const SPRiterator& rhs) const {
-    LOG_DBG << "SPRiterator !=";
+    if (i >= tree.tree.edge_count() and rhs.i >= rhs.tree.tree.edge_count())
+        return false;
     return i != rhs.i or j != rhs.j;
 }
 
