@@ -35,6 +35,7 @@ algo3 = ['-a', 'combo']
 algos = [algo1, algo2, algo3]
 
 repeat = 1
+repeatStartTreeMethod = 3
 
 def parse_lqic(out):
     outString = out.decode("UTF-8")
@@ -50,6 +51,7 @@ def make_starttree(d, file_st, args_st):
                                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
     lqic = parse_lqic(out)
+    print("----------------------------------------")
     print("sum lqic of startTree: " + str(lqic))
 
 def make_treesearch(d, file_st, algo):
@@ -75,22 +77,23 @@ df_col_rf = []
 df_col_rfnorm = []
 for d in data:
     for args_st in starttrees:
-        make_starttree(d, file_starttree, args_st)
-        for algo in algos:
-            for i in range(repeat):
-                (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
-                print( "took " + str(runtime) + "s")
-                print("sum lqic: " + str(lqic))
-                print("plain RF distance: " + str(rf_plain))
-                print("normalized RF distance: " + str(rf_normalized))
+        for _i in range(repeatStartTreeMethod):
+            make_starttree(d, file_starttree, args_st)
+            for algo in algos:
+                for _j in range(repeat):
+                    (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
+                    print( "took " + str(runtime) + "s")
+                    print("sum lqic: " + str(lqic))
+                    print("plain RF distance: " + str(rf_plain))
+                    print("normalized RF distance: " + str(rf_normalized))
 
-                df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
-                df_col_starttree.append(args_st[1])
-                df_col_algo.append(algo[1])
-                df_col_runtime.append(runtime)
-                df_col_lqic.append(lqic)
-                df_col_rf.append(rf_plain)
-                df_col_rfnorm.append(rf_normalized)
+                    df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
+                    df_col_starttree.append(args_st[1])
+                    df_col_algo.append(algo[1])
+                    df_col_runtime.append(runtime)
+                    df_col_lqic.append(lqic)
+                    df_col_rf.append(rf_plain)
+                    df_col_rfnorm.append(rf_normalized)
 
 df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
 print(df.to_string())
@@ -101,5 +104,5 @@ print(df.to_string())
 df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['min', 'max', 'mean', 'var', 'std'])
 
 print(df_stats)
-#df_stats.to_csv('df.csv')
+df_stats.to_csv('df.csv')
 
