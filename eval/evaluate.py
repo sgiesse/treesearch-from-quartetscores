@@ -70,6 +70,8 @@ df_col_runtime = []
 df_col_lqic = []
 df_col_dataset = []
 df_col_starttree = []
+df_col_rf = []
+df_col_rfnorm = []
 for d in data:
     for args_st in starttrees:
         make_starttree(file_starttree, args_st)
@@ -78,16 +80,24 @@ for d in data:
                 (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
                 print( "took " + str(runtime) + "s")
                 print("sum lqic: " + str(lqic))
-                print("plain RF distance: " + rf_plain)
-                print("normalized RF distance: " + rf_normalized)
+                print("plain RF distance: " + str(rf_plain))
+                print("normalized RF distance: " + str(rf_normalized))
 
                 df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
                 df_col_starttree.append(args_st[1])
                 df_col_runtime.append(runtime)
                 df_col_lqic.append(lqic)
+                df_col_rf.append(rf_plain)
+                df_col_rfnorm.append(rf_normalized)
 
-df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'runtime':df_col_runtime, 'LQIC': df_col_lqic})
+df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
 print(df.to_string())
 
-print(df.groupby(['Dataset', 'StartTree']).mean())
+#print(df.groupby(['Dataset', 'StartTree']).mean())
+#print(df.groupby(['Dataset', 'StartTree']).var())
+
+df_stats = df.groupby(['Dataset', 'StartTree']).agg(['min', 'max', 'mean', 'var', 'std'])
+
+print(df_stats)
+#df_stats.to_csv('df.csv')
 

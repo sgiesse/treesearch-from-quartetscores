@@ -40,6 +40,6 @@ def compare_rf(tree_1_path, tree_2_path):
 	    sys.exit()
 
     rf_line_splitted = open('RAxML_RF-Distances.TEST', 'r').read().split(' ')
-    rf_plain = rf_line_splitted[2]
-    rf_normalized = rf_line_splitted[3]
+    rf_plain = float(rf_line_splitted[2])
+    rf_normalized = float(rf_line_splitted[3])
     return (rf_plain, rf_normalized)
