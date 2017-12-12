@@ -1,6 +1,8 @@
 #ifndef SPR_ITERATOR_HPP
 #define SPR_ITERATOR_HPP
 
+#include "TreeInformation.hpp"
+
 #include "tree_operations.hpp"
 
 class SPRiterator;
@@ -12,6 +14,7 @@ private:
     Tree current;
     std::vector<bool> spr_ok;
     size_t i;
+    std::vector<double> lqic;
     void fill_spr_ok_for_i();
 public:
     SPRtree(Tree& _tree, size_t i);
@@ -21,6 +24,7 @@ public:
     void next_i();
     SPRiterator begin();
     SPRiterator end();
+    void restrict_by_lqic(std::vector<double>& _lqic);
 };
 
 class SPRiterator {
@@ -51,6 +55,7 @@ SPRtree::SPRtree(const SPRtree& m) {
     current = m.current;
     i = m.i;
     spr_ok = m.spr_ok;
+    lqic = m.lqic;
 }
 
 SPRtree::SPRtree() { }
@@ -80,6 +85,38 @@ void SPRtree::fill_spr_ok_for_i() {
 
     spr_ok[tree.edge_at(i).primary_link().next().edge().index()] = false;
     spr_ok[tree.edge_at(i).primary_link().next().next().edge().index()] = false;
+
+    if (lqic.size() > 0) {
+        TreeInformation t_inf;
+        t_inf.init(tree);
+
+        for (size_t j = 0; j < lqic.size(); ++j) {
+            size_t lca_idx = t_inf.lowestCommonAncestorIdx(
+                tree.edge_at(i).primary_link().node().index(),
+                tree.edge_at(j).primary_link().node().index(), tree.root_node().index());
+            size_t e = i;
+            while (tree.edge_at(e).primary_link().node().index() != lca_idx) {
+                size_t tmp = e;
+                e = tree.edge_at(e).primary_link().node().link().edge().index();
+                if (e == tmp) throw std::runtime_error("i");
+            }
+            double lqic_lca = lqic[e];
+            e = j;
+            while (tree.edge_at(e).primary_link().node().index() != lca_idx) {
+                size_t tmp = e;
+                e = tree.edge_at(e).primary_link().node().link().edge().index();
+                if (e == tmp) {
+                    std::cout << PrinterCompact().print(tree, print_help);
+                    throw std::runtime_error("j");}
+            }
+            lqic_lca += lqic[e];
+
+            if (lqic_lca  > 0){
+                spr_ok[j] = false;
+                std::cout << "|";
+            }
+        }
+    }
 }
 
 SPRiterator SPRtree::begin() {
@@ -88,6 +125,11 @@ SPRiterator SPRtree::begin() {
 
 SPRiterator SPRtree::end() {
     return SPRiterator(*this, tree.edge_count(), 0);
+}
+
+void SPRtree::restrict_by_lqic(std::vector<double>& _lqic) {
+    lqic = _lqic;
+    fill_spr_ok_for_i();
 }
 
 // --- end implementation for SPRtree

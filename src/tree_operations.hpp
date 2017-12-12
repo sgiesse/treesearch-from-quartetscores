@@ -275,6 +275,28 @@ std::vector<Tree> nni(Tree& tree) {
     return trees;
 }
 
+std::vector<Tree> nni_only_negative_lqic(Tree& tree, const std::vector<double>& lqic) {
+    std::vector<Tree> trees;
+    for(size_t i = 0; i < tree.edge_count(); ++i ) {
+        auto const& edge = tree.edge_at( i );
+        if (!(edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
+            continue; //edge is no internode
+        if (lqic[i] > 0)
+            continue;
+
+        Tree tnew = nni_a(tree, i);
+        trees.push_back(tnew);
+
+        Tree tnew2 = nni_b(tree, i);
+        trees.push_back(tnew2);
+
+        if (!validate_topology(tnew) or !validate_topology(tnew2)) {
+            throw std::runtime_error("NNI produced invalid topology!");
+        }
+    }
+    return trees;
+}
+
 Tree nni_a(Tree& tree, int i) {
     Tree tnew(tree);
 

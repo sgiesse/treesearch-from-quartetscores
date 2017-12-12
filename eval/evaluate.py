@@ -21,21 +21,25 @@ data = [('../../data/ICTC-master/data/Empirical/Avian/avian_all.tre',
         ('../../data/simulated_datasets_for_sarah/model1002M6E.n01.estimated_gene.trees',
          '../../data/simulated_datasets_for_sarah/model1002M6E.n01.true_species.tre')]
 
-data = data[1:3]
-
 common_args = [TREESEARCH_EXCTBL, '-l', 'Info']
 
 starttrees = [['-s', 'random'],['-s','stepwiseaddition']]
-#starttrees = starttrees[1:]
 file_starttree = '../../out/starttree.tre'
 
 algo1 = ['-a', 'nni']
 algo2 = ['-a', 'spr']
 algo3 = ['-a', 'combo']
-algos = [algo1, algo2, algo3]
+algo4 = ['-a', 'combo', '-x']
 
 repeat = 1
 repeatStartTreeMethod = 3
+
+# ------- Define subset of configurations ---
+algos = [algo3, algo4]
+#starttrees = starttrees[1:2]
+data = data[1:2]
+#--------------------------------------------
+
 
 def parse_lqic(out):
     outString = out.decode("UTF-8")
@@ -45,11 +49,17 @@ def parse_lqic(out):
         end = outString.find("\n",str_pos)
         lqic = float(outString[start:end])
         return lqic
+    else:
+        print(out.decode("UTF-8"))
+        raise RuntimeError("no LQIC found")
 
 def make_starttree(d, file_st, args_st):
     process = subprocess.Popen([TREESEARCH_EXCTBL,'-e', d[0], '-r', d[1],  '-a', 'no', '-o', file_st]+args_st,
                                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
+    if (process.returncode != 0): 
+        print(out.decode("UTF-8"))
+        raise RuntimeError("")
     lqic = parse_lqic(out)
     print("----------------------------------------")
     print("sum lqic of startTree: " + str(lqic))
@@ -82,14 +92,14 @@ for d in data:
             for algo in algos:
                 for _j in range(repeat):
                     (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
-                    print( "took " + str(runtime) + "s")
+                    print("took " + str(runtime) + "s")
                     print("sum lqic: " + str(lqic))
                     print("plain RF distance: " + str(rf_plain))
                     print("normalized RF distance: " + str(rf_normalized))
 
                     df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
                     df_col_starttree.append(args_st[1])
-                    df_col_algo.append(algo[1])
+                    df_col_algo.append(" ".join(algo[1:]))
                     df_col_runtime.append(runtime)
                     df_col_lqic.append(lqic)
                     df_col_rf.append(rf_plain)
@@ -101,7 +111,8 @@ print(df.to_string())
 #print(df.groupby(['Dataset', 'StartTree']).mean())
 #print(df.groupby(['Dataset', 'StartTree']).var())
 
-df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['min', 'max', 'mean', 'var', 'std'])
+#df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['min', 'max', 'mean', 'var', 'std'])
+df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['mean', 'var'])
 
 print(df_stats)
 df_stats.to_csv('df.csv')

@@ -6,7 +6,7 @@
 #include "spr_iterator.hpp"
 
 template<typename CINT>
-Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -17,7 +17,15 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     while (true) {
         double max = std::numeric_limits<double>::lowest();
         int best = 0;
-        std::vector<Tree> nb_trees = nni(tnew);
+
+        std::vector<Tree> nb_trees;
+        if (restrict_by_lqic) {
+            qsc.recomputeScores(tnew, false);
+            nb_trees = nni_only_negative_lqic(tnew, qsc.getLQICScores());
+        }
+        else
+            nb_trees = nni(tnew);
+
         for (size_t i = 0; i < nb_trees.size(); ++i) {
 
             qsc.recomputeScores(nb_trees[i], false);
@@ -47,7 +55,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
-Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -57,6 +65,11 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 
     while (true) {
         SPRtree sprs(best);
+        if (restrict_by_lqic) {
+            qsc.recomputeScores(best, false);
+            std::vector<double> lqic = qsc.getLQICScores();
+            sprs.restrict_by_lqic(lqic);
+        }
         bool found_tree = false;
         LOG_INFO << "SPR";
         for (auto it : sprs) {
@@ -71,7 +84,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
             }
         }
         if (found_tree) {
-            best = tree_search(best, qsc);
+            best = tree_search(best, qsc, restrict_by_lqic);
             qsc.recomputeScores(best, false);
             max = sum_lqic_scores(qsc);
         } else break;

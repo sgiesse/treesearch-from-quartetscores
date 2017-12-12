@@ -22,7 +22,7 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic) {
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
@@ -64,11 +64,11 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
 
     Tree final_tree;
     if (algorithm == "nni")
-        final_tree = tree_search<CINT>(start_tree, qsc);
+        final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
     else if (algorithm == "spr")
         final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
     else if (algorithm == "combo")
-        final_tree = tree_search_combo<CINT>(start_tree, qsc);
+        final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
@@ -91,6 +91,7 @@ int main(int argc, char* argv[]) {
     std::string algorithm;
     std::string pathToOutput;
     std::string pathToStartTree;
+    bool restrictByLqic;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -120,12 +121,16 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> startTreeArg("t", "starttree", "Path to start tree file", false, "", "string");
         cmd.add(startTreeArg);
 
+        TCLAP::SwitchArg restrictByLqicArg("x", "restricted", "Restrict NNI and SPR moves to edges with negative LQIC score");
+        cmd.add(restrictByLqicArg);
+
         cmd.parse(argc, argv);
 
         pathToReferenceTree = refArg.getValue();
         pathToEvaluationTrees = evalArg.getValue();
         pathToOutput = outArg.getValue();
         pathToStartTree = startTreeArg.getValue();
+        restrictByLqic = restrictByLqicArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -151,13 +156,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
 
     LOG_BOLD << "Done" << std::endl;
 
