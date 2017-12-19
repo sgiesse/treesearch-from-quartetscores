@@ -1,6 +1,10 @@
 #ifndef TREESEARCH_HPP
 #define TREESEARCH_HPP
 
+#include <cmath>
+
+#include "genesis/tree/function/manipulation.hpp"
+
 #include "utils.hpp"
 #include "tree_operations.hpp"
 #include "spr_iterator.hpp"
@@ -237,15 +241,9 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
     Tree precalc_tree(tree);
     for (int i = leaves.size()-1; i >= 0; --i) {
         LOG_DBG << leaves[i] << std::endl;
-        for (size_t j = 0; j < precalc_tree.edge_count(); ++j) {
-            auto const& edge = precalc_tree.edge_at(j);
-            if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
-                continue;
-            else {
-                add_leaf(precalc_tree, j, leaves[i]);
-                break;
-            }
-        }
+        add_new_node(precalc_tree,
+                     precalc_tree.edge_at(Random::get_rand_int(0, precalc_tree.edge_count()-1))).
+            secondary_link().node().data_cast<DefaultNodeData>()->name = leaves[i];
     }
     QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, m, true, true);
 
@@ -258,13 +256,9 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
         double max = std::numeric_limits<double>::lowest();
         for (size_t i = 0; i < tree.edge_count(); ++i) {
             LOG_DBG << "leaves left: " << leaves.size() << " edge " << i << "/" << tree.edge_count() << std::endl;
-
-            auto const& edge = tree.edge_at(i);
-            if ((edge.primary_link().node().is_inner() && edge.secondary_link().node().is_inner()))
-                continue; //edge is internode TODO how?
-
             Tree tnew = Tree(tree);
-            add_leaf(tnew, i, lname);
+            add_new_node(tnew, tnew.edge_at(i)).
+                secondary_link().node().data_cast<DefaultNodeData>()->name = lname;
 
             LOG_DBG << "valid tnew:  " << validate_topology(tnew) << std::endl;
 
@@ -290,5 +284,143 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
 }
 
 
+template<typename CINT>
+void mcmc_helper(Tree& current, Tree& candidate, double T, double& score_min, double& score_max, double& score_curr, QuartetScoreComputer<CINT>& qsc) {
+    const int m = Random::get_rand_int(0, 1);
+    if (m == 0) { //NNI
+        const int ab = Random::get_rand_int(0, 1);
+        int e = Random::get_rand_int(0, current.edge_count()-1);
+        while (current.edge_at(e).secondary_link().node().is_leaf())
+            e = Random::get_rand_int(0, current.edge_count()-1);
+        if (ab == 0)
+            candidate = nni_a(current, e);
+        else
+            candidate = nni_b(current, e);
+    } else { //SPR
+        candidate = Tree(current);
+        size_t p = Random::get_rand_int(0, current.edge_count()-1);
+        size_t r = Random::get_rand_int(0, current.edge_count()-1);
+        while (!spr(candidate, p, r)) {
+            p = Random::get_rand_int(0, current.edge_count()-1);
+            r = Random::get_rand_int(0, current.edge_count()-1);
+        }
+    }
+    qsc.recomputeScores(candidate, false);
+    double score = sum_lqic_scores(qsc);
+    double score_interp;
+    double score_curr_interp;
+
+    if (score < score_min) score_min = score;
+    if (score > score_max) score_max = score;
+
+    if (score < 0) score_interp = (score_min - score) / score_min * 0.5;
+    else score_interp = 0.5 + score / score_max * 0.5;
+
+    if (score_curr < 0) score_curr_interp = (score_min - score_curr) / score_min * 0.5;
+    else score_curr_interp = 0.5 + score_curr / score_max * 0.5;
+
+    score_interp = pow(score_interp, 4);
+    score_curr_interp = pow(score_curr_interp, 4);
+
+    double R = score_interp / score_curr_interp;
+    //std::cout << T << " " << R << " " << pow(R, 1/T) <<  "\n";
+    //std::cout << score << " " << score_curr << " " << R << std::endl;
+    if (R > 1) {
+        current = candidate;
+        score_curr = score;
+    }
+    else {
+        if (Random::get_rand_float(0.0, 1.0) < pow(R, 1/T)) {
+            current = candidate;
+            score_curr = score;
+        }
+    }
+}
+
+
+template<typename CINT>
+Tree mcmc(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+    Tree current(tree);
+    qsc.recomputeScores(current, false);
+    double score_start = sum_lqic_scores(qsc);
+    double score_min = score_start;
+    double score_max = score_start;
+    if (score_start < 0) score_max = 0;
+    else score_min = 0;
+
+    const int N = 2000;
+
+    for (int i = 0; i < N; ++i) {
+        qsc.recomputeScores(current, false);
+        double score_curr = sum_lqic_scores(qsc);
+
+        LOG_INFO << score_curr << std::endl;
+
+        double T = pow(2.0, (N-i)/(N/10)-7);
+        Tree candidate;
+        mcmc_helper(current, candidate, T, score_min, score_max,  score_curr, qsc);
+    }
+
+    return current;
+}
+
+
+
+template<typename CINT>
+Tree mcmcmc(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+    Tree current(tree);
+    qsc.recomputeScores(current, false);
+    double score_start = sum_lqic_scores(qsc);
+    double score_min = score_start;
+    double score_max = score_start;
+    if (score_start < 0) score_max = 0;
+    else score_min = 0;
+
+    const int N = 2000;
+    const int M = 4;
+    std::vector<Tree> currents;
+    std::vector<double> Ts;
+    std::vector<double> scores(M);
+
+    for (int i = 0; i < M; ++i) {
+        currents.push_back(Tree(current));
+        //Ts.push_back(pow(2.0, i-(M/2)-2));
+        Ts.push_back(pow(2.0, i-M+2));
+        std::cout << pow(2.0, i-M+2) << "\n";
+
+        qsc.recomputeScores(currents[i], false);
+        scores[i] = sum_lqic_scores(qsc);
+    }
+
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < M; ++j) {
+            qsc.recomputeScores(currents[j], false);
+            scores[j] = sum_lqic_scores(qsc);
+
+            if (j == 0) {LOG_INFO << scores[j] << "\n";}
+
+            Tree candidate;
+            mcmc_helper(currents[j], candidate, Ts[j], score_min, score_max,  scores[j], qsc);
+        }
+
+        size_t c1 = Random::get_rand_int(0, M-1);
+        size_t c2 = Random::get_rand_int(0, M-1);
+        while (c1 == c2) c2 = Random::get_rand_int(0, M-1);
+        double p = (pow(scores[c1], 1/Ts[c1]) * pow(scores[c2], 1/Ts[c2]))/(pow(scores[c1], 1/Ts[c2]) * pow(scores[c2], 1/Ts[c1]));
+        //if (Random::get_rand_float(0.0, 1.0) < p) {
+        if (p>=1) { // TODO
+            Tree tmp(currents[c1]);
+            currents[c1] = currents[c2];
+            currents[c2] = tmp;
+            if (c1 == 0 or c2 == 0) std::cout << "swapped " << c1 << " <-> " << c2 << " " << p <<  "\n";
+        }
+
+        /*for (int j = 0; j < M; ++j) {
+            std::cout << scores[j] << " ";
+        } std::cout << std::endl;*/
+    }
+
+    return currents[0];
+}
 
 #endif

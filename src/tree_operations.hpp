@@ -14,7 +14,6 @@ bool spr(Tree& tree, int i, int j);
 Tree make_random_nni_moves(Tree& tree, int n);
 std::vector<std::string> leafNames(const std::string &evalTreesPath);
 bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
-void add_leaf(Tree& tree, size_t i, std::string lname);
 
 // -----------------------------
 
@@ -223,36 +222,6 @@ bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose = false) {
     }
 
     return ok;
-}
-
-void add_leaf(Tree& tree, size_t i, std::string lname) {
-    add_new_node(tree, tree.edge_at(i).secondary_link().node());
-    add_new_node(tree, tree.edge_at(i).secondary_link().node());
-    tree.edge_at(i).secondary_link().next().outer().node().data_cast<DefaultNodeData>()->name = lname;
-
-    size_t l2 = tree.edge_at(i).primary_link().index();
-    size_t l3 = tree.edge_at(i).secondary_link().index();
-    size_t l6 = tree.link_at(l3).next().index();
-    size_t l8 = tree.link_at(l6).next().index();
-    size_t l9 = tree.link_at(l8).outer().index();
-
-    tree.link_at(l9).reset_next(&tree.link_at(l6));
-    tree.link_at(l8).reset_next(&tree.link_at(l9));
-    tree.link_at(l3).reset_next(&tree.link_at(l3));
-
-    tree.link_at(l2).reset_outer(&tree.link_at(l9));
-    tree.link_at(l9).reset_outer(&tree.link_at(l2));
-    tree.link_at(l3).reset_outer(&tree.link_at(l8));
-    tree.link_at(l8).reset_outer(&tree.link_at(l3));
-
-    tree.link_at(l6).reset_node(&tree.link_at(l9).node());
-    tree.link_at(l8).reset_node(&tree.link_at(l9).node());
-
-    tree.link_at(l2).edge().reset_secondary_link(&tree.link_at(l9));
-    tree.link_at(l8).edge().reset_secondary_link(&tree.link_at(l3));
-
-    tree.link_at(l3).reset_edge(&tree.link_at(l8).edge());
-    tree.link_at(l9).reset_edge(&tree.link_at(l2).edge());
 }
 
 std::vector<Tree> nni(Tree& tree) {

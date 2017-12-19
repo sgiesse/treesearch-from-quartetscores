@@ -63,6 +63,14 @@ namespace Random {
         return distr(mt);
     }
 
+    float get_rand_float(float a, float b) {
+        if (!initialized) {
+            init();
+        }
+        std::uniform_real_distribution<> distr(a,b);
+        return distr(mt);
+    }
+
     std::mt19937 getMT() {
         if (!initialized) init();
         return mt;
