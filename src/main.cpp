@@ -29,6 +29,8 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
             start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
         else if (startTreeMethod == "random")
             start_tree = random_tree(pathToEvaluationTrees);
+        else if (startTreeMethod == "exhaustive")
+            start_tree = exhaustive_search<CINT>(pathToEvaluationTrees, m);
         else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
     } else {
         LOG_INFO << "Read start tree from file";
@@ -69,6 +71,10 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
     else if (algorithm == "combo")
         final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+    else if (algorithm == "mcmc")
+        final_tree = mcmc<CINT>(start_tree, qsc);
+    else if (algorithm == "mcmcmc")
+        final_tree = mcmcmc<CINT>(start_tree, qsc);
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
@@ -105,12 +111,12 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> logLevelArg("l", "loglevel", "Log Level", false, "Info" , &constraintLogLevels);
         cmd.add(logLevelArg);
 
-        std::vector<std::string> allowedStartTreeMethods = { "random", "stepwiseaddition" };
+        std::vector<std::string> allowedStartTreeMethods = { "random", "stepwiseaddition", "exhaustive" };
         TCLAP::ValuesConstraint<std::string> constraintStart(allowedStartTreeMethods);
         TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
         cmd.add(startTreeMethodArg);
 
-        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no" };
+        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no", "mcmc", "mcmcmc" };
         TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
         TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
         cmd.add(algorithmArg);

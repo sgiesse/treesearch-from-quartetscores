@@ -423,4 +423,70 @@ Tree mcmcmc(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     return currents[0];
 }
 
+
+
+uint64_t treecount(uint64_t n) {
+    if (n == 3) return 1;
+    return treecount(n-1) * (2*n-5);
+}
+
+
+template<typename CINT>
+void _rec_exhaustive_search(Tree& tree, Tree& best, std::vector<std::string>& leaves, int li, QuartetScoreComputer<CINT>& qsc, double& max, int& c) {
+    if (li < 0) {
+        qsc.recomputeScores(tree, false);
+        double sum = sum_lqic_scores(qsc);
+        if (sum > max) {
+            max = sum;
+            best = tree;
+        } 
+        c++;
+        auto tc = treecount(leaves.size()+3);
+        auto oneP = tc/100;
+        if (c % oneP == 0) std::cout << c << "/" << treecount(leaves.size()+3) << "\n";
+        return;
+    }
+
+    for (size_t i = 0; i < tree.edge_count(); ++i) {
+        Tree tnew = Tree(tree);
+        add_new_node(tnew, tnew.edge_at(i)).
+            secondary_link().node().data_cast<DefaultNodeData>()->name = leaves[li];
+        _rec_exhaustive_search(tnew, best, leaves, li-1, qsc, max, c);
+    }
+}
+
+template<typename CINT>
+Tree exhaustive_search(const std::string &evalTreesPath, size_t m) {
+    // Get set of node names
+    std::vector<std::string> leaves = leafNames(evalTreesPath);
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+
+    std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
+    leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
+    Tree tree = DefaultTreeNewickReader().from_string(newick);
+
+    Tree precalc_tree(tree);
+    for (int i = leaves.size()-1; i >= 0; --i) {
+        LOG_DBG << leaves[i] << std::endl;
+        add_new_node(precalc_tree,
+                     precalc_tree.edge_at(Random::get_rand_int(0, precalc_tree.edge_count()-1))).
+            secondary_link().node().data_cast<DefaultNodeData>()->name = leaves[i];
+    }
+    QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, m, true, true);
+
+    double max = -2.0 * leaves.size();
+    Tree best = tree;
+    int c = 0;
+
+    for (size_t i = 0; i < tree.edge_count(); ++i) {
+        Tree tnew = Tree(tree);
+        add_new_node(tnew, tnew.edge_at(i)).
+            secondary_link().node().data_cast<DefaultNodeData>()->name = leaves[leaves.size()-1];
+        _rec_exhaustive_search(tnew, best, leaves, leaves.size()-2, qsc, max, c);
+    }
+
+    return best;
+}
+
+
 #endif
