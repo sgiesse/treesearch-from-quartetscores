@@ -94,27 +94,29 @@ void SPRtree::fill_spr_ok_for_i() {
             size_t lca_idx = t_inf.lowestCommonAncestorIdx(
                 tree.edge_at(i).primary_link().node().index(),
                 tree.edge_at(j).primary_link().node().index(), tree.root_node().index());
-            size_t e = i;
-            while (tree.edge_at(e).primary_link().node().index() != lca_idx) {
-                size_t tmp = e;
-                e = tree.edge_at(e).primary_link().node().link().edge().index();
-                if (e == tmp) throw std::runtime_error("i");
+            
+            bool skip = true;
+            if (!tree.edge_at(i).primary_link().node().is_root()) {
+                if (tree.edge_at(i).primary_link().node().index() != lca_idx) {
+                    size_t e = tree.edge_at(i).primary_link().node().link().edge().index();
+                    while (tree.edge_at(e).secondary_link().node().index() != lca_idx
+                           and e != tree.edge_at(i).primary_link().node().link().edge().index()) {
+                        if (lqic[e] < 0) skip = false;
+                        e = tree.edge_at(i).primary_link().node().link().edge().index();
+                    }
+                }
             }
-            double lqic_lca = lqic[e];
-            e = j;
-            while (tree.edge_at(e).primary_link().node().index() != lca_idx) {
-                size_t tmp = e;
-                e = tree.edge_at(e).primary_link().node().link().edge().index();
-                if (e == tmp) {
-                    std::cout << PrinterCompact().print(tree, print_help);
-                    throw std::runtime_error("j");}
+            if (!tree.edge_at(j).primary_link().node().is_root()) {
+                if (tree.edge_at(j).primary_link().node().index() != lca_idx) {
+                    size_t e = tree.edge_at(j).primary_link().node().link().edge().index();
+                    while (tree.edge_at(e).secondary_link().node().index() != lca_idx
+                           and e != tree.edge_at(i).primary_link().node().link().edge().index()) {
+                        if (lqic[e] < 0) skip = false;
+                        e = tree.edge_at(i).primary_link().node().link().edge().index();
+                    }
+                }
             }
-            lqic_lca += lqic[e];
-
-            if (lqic_lca  > 0){
-                spr_ok[j] = false;
-                std::cout << "|";
-            }
+            if (skip) spr_ok[j] = false;
         }
     }
 }
