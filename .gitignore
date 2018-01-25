@@ -39,3 +39,6 @@ build/
 eval/__pycache__/
 eval/env/
 eval/trees
+
+*config.json
+*config.json.progress.csv

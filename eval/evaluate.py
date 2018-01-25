@@ -4,41 +4,27 @@ import sys
 import os
 import timeit
 import pandas as pd
+import json
 from compare_rf import compare_rf
 
-
-TREESEARCH_EXCTBL = '../build/treesearch'
-
-
-data = [('../../data/ICTC-master/data/Empirical/Avian/avian_all.tre',
-         '../../data/ICTC-master/data/Empirical/Avian/avian_reference.tre'),
-        ('../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre',
-         '../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre'),
-        ('../../data/simulated_datasets_for_sarah/model102M6E.n01.estimated_gene.trees',
-         '../../data/simulated_datasets_for_sarah/model102M6E.n01.true_species.tre'),
-        ('../../data/simulated_datasets_for_sarah/model502M6E.n01.estimated_gene.trees',
-         '../../data/simulated_datasets_for_sarah/model502M6E.n01.true_species.tre'),
-        ('../../data/simulated_datasets_for_sarah/model1002M6E.n01.estimated_gene.trees',
-         '../../data/simulated_datasets_for_sarah/model1002M6E.n01.true_species.tre')]
-
-common_args = [TREESEARCH_EXCTBL, '-l', 'Info']
-
-starttrees = [['-s', 'random'],['-s','stepwiseaddition']]
-file_starttree = '../../out/starttree.tre'
-
-algo1 = ['-a', 'nni']
-algo2 = ['-a', 'spr']
-algo3 = ['-a', 'combo']
-algo4 = ['-a', 'combo', '-x']
-
-repeat = 1
-repeatStartTreeMethod = 3
-
-# ------- Define subset of configurations ---
-algos = [algo3, algo4]
-#starttrees = starttrees[1:2]
-data = data[1:2]
-#--------------------------------------------
+# Provide a json-config file as first argument. Sample:
+'''
+{
+    "data": [["../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre",
+              "../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre"],
+             ["../../data/simulated_datasets_for_sarah/model102M6E.n01.estimated_gene.trees",
+              "../../data/simulated_datasets_for_sarah/model102M6E.n01.true_species.tre"]],
+    "exe": "../build/treesearch",
+    "args": [ "-l", "Info"],
+    "starttrees": [["-s", "random"],["-s","stepwiseaddition"]],
+    "file_starttree": "../../out/starttree.tre",
+    "algorithms": [["-a", "nni"], ["-a", "combo", "-x"]],
+    "repeat": 1,
+    "repeatStartTreeMethod": 1
+}
+'''
+with open(sys.argv[1]) as json_config_file:
+    config = json.load(json_config_file)
 
 
 def parse_lqic(out):
@@ -54,7 +40,7 @@ def parse_lqic(out):
         raise RuntimeError("no LQIC found")
 
 def make_starttree(d, file_st, args_st):
-    process = subprocess.Popen([TREESEARCH_EXCTBL,'-e', d[0], '-r', d[1],  '-a', 'no', '-o', file_st]+args_st,
+    process = subprocess.Popen([config["exe"],'-e', d[0], '-r', d[1],  '-a', 'no', '-o', file_st]+args_st,
                                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
     if (process.returncode != 0): 
@@ -65,7 +51,7 @@ def make_starttree(d, file_st, args_st):
     print("sum lqic of startTree: " + str(lqic))
 
 def make_treesearch(d, file_st, algo):
-    a = common_args + ['-e', d[0], '-r', d[1], '-t', file_st] + algo
+    a = [config["exe"]] + config["args"] + ['-e', d[0], '-r', d[1], '-t', file_st] + algo
     print("----------------------------------------")
     print(" ".join(a))
     start = timeit.default_timer()
@@ -75,8 +61,9 @@ def make_treesearch(d, file_st, algo):
     runtime = end - start
     lqic = parse_lqic(out)
     (rf_plain, rf_normalized) = compare_rf('../../out/out.tre', d[1])
-
     return (runtime, lqic, rf_plain, rf_normalized)
+
+
 
 df_col_runtime = []
 df_col_lqic = []
@@ -85,25 +72,46 @@ df_col_starttree = []
 df_col_algo = []
 df_col_rf = []
 df_col_rfnorm = []
-for d in data:
-    for args_st in starttrees:
-        for _i in range(repeatStartTreeMethod):
-            make_starttree(d, file_starttree, args_st)
-            for algo in algos:
-                for _j in range(repeat):
-                    (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, file_starttree, algo)
-                    print("took " + str(runtime) + "s")
-                    print("sum lqic: " + str(lqic))
-                    print("plain RF distance: " + str(rf_plain))
-                    print("normalized RF distance: " + str(rf_normalized))
 
-                    df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
-                    df_col_starttree.append(args_st[1])
-                    df_col_algo.append(" ".join(algo[1:]))
-                    df_col_runtime.append(runtime)
-                    df_col_lqic.append(lqic)
-                    df_col_rf.append(rf_plain)
-                    df_col_rfnorm.append(rf_normalized)
+progfile = sys.argv[1]+".progress.csv"
+
+try:
+    dfp = pd.read_csv(progfile)
+    df_col_runtime = dfp["runtime"].tolist()
+    df_col_lqic = dfp["LQIC"].tolist()
+    df_col_dataset = dfp["Dataset"].tolist()
+    df_col_starttree = dfp["StartTree"].tolist()
+    df_col_algo = dfp["Algorithm"].tolist()
+    df_col_rf = dfp["RF"].tolist()
+    df_col_rfnorm = dfp["RF_normalized"].tolist()
+except FileNotFoundError:
+    pass
+
+i = 0
+for d in config["data"]:
+    for args_st in config["starttrees"]:
+        for _i in range(config["repeatStartTreeMethod"]):
+            make_starttree(d, config["file_starttree"], args_st)
+            for algo in config["algorithms"]:
+                for _j in range(config["repeat"]):
+                    if i == len(df_col_runtime):
+                        (runtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, config["file_starttree"], algo)
+                        print("took " + str(runtime) + "s")
+                        print("sum lqic: " + str(lqic))
+                        print("plain RF distance: " + str(rf_plain))
+                        print("normalized RF distance: " + str(rf_normalized))
+                        df_col_dataset.append(d[0][d[0].rfind('/')+1:d[0].rfind('.')])
+                        df_col_starttree.append(args_st[1])
+                        df_col_algo.append(" ".join(algo[1:]))
+                        df_col_runtime.append(runtime)
+                        df_col_lqic.append(lqic)
+                        df_col_rf.append(rf_plain)
+                        df_col_rfnorm.append(rf_normalized)
+                        df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
+                        df.to_csv(progfile)
+                    else:
+                        print("skip, because already computed")
+                    i = i+1
 
 df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime':df_col_runtime, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
 print(df.to_string())
@@ -117,3 +125,4 @@ df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['mean', 'var']
 print(df_stats)
 df_stats.to_csv('df.csv')
 
+#os.remove(progfile)
