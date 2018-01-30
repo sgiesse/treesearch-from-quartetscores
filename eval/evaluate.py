@@ -51,7 +51,7 @@ def make_starttree(d, file_st, args_st):
     print("sum lqic of startTree: " + str(lqic))
 
 def make_treesearch(d, file_st, algo):
-    a = [config["exe"]] + config["args"] + ['-e', d[0], '-r', d[1], '-t', file_st] + algo
+    a = [config["exe"]] + config["args"] + ['-e', d[0], '-r', d[1], '--starttree', file_st] + algo
     print("----------------------------------------")
     print(" ".join(a))
     start = timeit.default_timer()

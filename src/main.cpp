@@ -98,6 +98,7 @@ int main(int argc, char* argv[]) {
     std::string pathToOutput;
     std::string pathToStartTree;
     bool restrictByLqic;
+    int numThreads;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -124,11 +125,14 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> outArg("o", "outfile", "Path to output file", false, "../../out/out.tre", "string");
         cmd.add(outArg);
 
-        TCLAP::ValueArg<std::string> startTreeArg("t", "starttree", "Path to start tree file", false, "", "string");
+        TCLAP::ValueArg<std::string> startTreeArg("", "starttree", "Path to start tree file", false, "", "string");
         cmd.add(startTreeArg);
 
         TCLAP::SwitchArg restrictByLqicArg("x", "restricted", "Restrict NNI and SPR moves to edges with negative LQIC score");
         cmd.add(restrictByLqicArg);
+
+        TCLAP::ValueArg<int> numThreadsArg("t", "numThreads", "Number of Threads", false, 1, "int");
+        cmd.add(numThreadsArg);
 
         cmd.parse(argc, argv);
 
@@ -137,6 +141,7 @@ int main(int argc, char* argv[]) {
         pathToOutput = outArg.getValue();
         pathToStartTree = startTreeArg.getValue();
         restrictByLqic = restrictByLqicArg.getValue();
+        numThreads = numThreadsArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -159,6 +164,8 @@ int main(int argc, char* argv[]) {
     //Tree ref_tree = DefaultTreeNewickReader().from_file(pathToReferenceTree);
 
     //LOG_INFO << PrinterCompact().print(ref_tree);
+
+    omp_set_num_threads(numThreads);
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
