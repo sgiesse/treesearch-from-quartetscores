@@ -39,3 +39,6 @@ include_directories( "src" )
 
 add_executable(treesearch "src/main.cpp")
 target_link_libraries (treesearch ${GENESIS_LINK_LIBRARIES} )
+
+enable_testing()
+add_subdirectory(tests)

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <memory>
 #include "genesis/tree/function/manipulation.hpp"
+#include "utils.hpp"
 
 // --------- Forward Declarations
 std::vector<Tree> nni(Tree& tree);

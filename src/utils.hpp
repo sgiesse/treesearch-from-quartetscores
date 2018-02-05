@@ -1,6 +1,8 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
+#include "QuartetScoreComputer.hpp"
+
 template<typename CINT>
 double sum_lqic_scores(QuartetScoreComputer<CINT>& qsc) {
     std::vector<double> lqic = qsc.getLQICScores();
