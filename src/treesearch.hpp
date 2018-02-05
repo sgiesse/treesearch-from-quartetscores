@@ -7,6 +7,7 @@
 
 #include "utils.hpp"
 #include "tree_operations.hpp"
+#include "nni.hpp"
 #include "spr_iterator.hpp"
 
 template<typename CINT>

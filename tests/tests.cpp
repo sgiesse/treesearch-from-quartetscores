@@ -5,7 +5,7 @@
 using namespace genesis;
 using namespace genesis::tree;
 
-#include "tree_operations.hpp"
+#include "nni.hpp"
 
 void test_tree_manipulation(
     std::string newickIn, std::string newickExpected, std::function<Tree(Tree)> manipulateTree) {
