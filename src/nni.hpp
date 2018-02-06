@@ -65,6 +65,27 @@ Tree nni_a(Tree& tree, int i) {
     return tnew;
 }
 
+template<typename CINT>
+void nni_a_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_a_inplace(tree, e);
+    qsc.recomputeLqicForEdge(tree, e);
+    double lqic_t = qsc.getLQICScores()[tree.edge_at(e).primary_link().next().next().edge().index()];
+    qsc.setLQIC(tree.edge_at(e).primary_link().next().next().edge().index(),
+                qsc.getLQICScores()[tree.edge_at(e).secondary_link().next().edge().index()]);
+    qsc.setLQIC(tree.edge_at(e).secondary_link().next().edge().index(), lqic_t);
+}
+
+
+template<typename CINT>
+void nni_b_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_b_inplace(tree, e);
+    qsc.recomputeLqicForEdge(tree, e);
+    double lqic_t = qsc.getLQICScores()[tree.edge_at(e).primary_link().next().next().edge().index()];
+    qsc.setLQIC(tree.edge_at(e).primary_link().next().next().edge().index(),
+                qsc.getLQICScores()[tree.edge_at(e).secondary_link().next().next().edge().index()]);
+    qsc.setLQIC(tree.edge_at(e).secondary_link().next().next().edge().index(), lqic_t);
+}
+
 void nni_a_inplace(Tree& tree, int i) {
     if (tree.edge_at(i).primary_link().next().edge().secondary_link().index() ==
         tree.edge_at(i).primary_link().next().index()) {
