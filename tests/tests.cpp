@@ -49,9 +49,9 @@ TEST_CASE("nni_b_reverse") {
 }
 
 TEST_CASE("LQIC after NNI") {
-    Tree tree = DefaultTreeNewickReader().from_file("../../data/ICTC-master/data/Empirical/Yeast/yeast_reference.tre");
-    size_t m = countEvalTrees("../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre");
-    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre", m, true, true);
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
     size_t e = 2;
     while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
 

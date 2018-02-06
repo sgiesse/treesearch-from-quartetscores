@@ -27,4 +27,5 @@ target_include_directories(${TARGET_NAME}
 
 add_test(
   NAME ${TARGET_NAME}
-  COMMAND ${TARGET_NAME} -s -o report.xml )
+  COMMAND ${TARGET_NAME} -s -o report.xml
+  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/tests")
