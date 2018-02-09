@@ -6,6 +6,7 @@
 #include <memory>
 #include "genesis/tree/function/manipulation.hpp"
 #include "utils.hpp"
+#include "../externals/generator/generator.hpp"
 
 // --------- Forward Declarations
 std::vector<Tree> nni(Tree& tree);
@@ -14,8 +15,49 @@ Tree nni_b(Tree& tree, int i);
 void nni_b_inplace(Tree& tree, int i);
 void nni_a_inplace(Tree& tree, int i);
 Tree make_random_nni_moves(Tree& tree, int n);
-
 // -----------------------------
+
+
+GENERATOR(nni_generator) {
+    size_t i;
+    Tree tree;
+    nni_generator(Tree t) { tree = t;}
+    EMIT(Tree)
+        for (i = 0; i < tree.edge_count(); i++){
+            if (!(tree.edge_at(i).primary_link().node().is_inner() && tree.edge_at(i).secondary_link().node().is_inner()))
+                continue; //edge is no internode
+
+            nni_a_inplace(tree, i);
+            YIELD(tree);
+            nni_a_inplace(tree, i); // Reverse previous NNI move
+            nni_b_inplace(tree, i);
+            YIELD(tree);
+            nni_b_inplace(tree, i);
+        }
+    STOP;
+};
+
+template<typename CINT>
+GENERATOR(nni_generator_qsc) {
+    size_t i;
+    Tree tree;
+    QuartetScoreComputer<CINT>* qsc;
+    nni_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc) { tree = t; qsc = _qsc; }
+    EMIT(Tree)
+        for (i = 0; i < tree.edge_count(); i++){
+            if (!(tree.edge_at(i).primary_link().node().is_inner() && tree.edge_at(i).secondary_link().node().is_inner()))
+                continue; //edge is no internode
+
+            nni_a_with_lqic_update(tree, i, *qsc);
+            YIELD(tree);
+            nni_a_with_lqic_update(tree, i, *qsc); // Reverse previous NNI move
+            nni_b_with_lqic_update(tree, i, *qsc);
+            YIELD(tree);
+            nni_b_with_lqic_update(tree, i, *qsc);
+        }
+    STOP;
+};
+
 
 std::vector<Tree> nni(Tree& tree) {
     std::vector<Tree> trees;
@@ -66,24 +108,44 @@ Tree nni_a(Tree& tree, int i) {
 }
 
 template<typename CINT>
+void swap_LQIC(size_t i, size_t j, QuartetScoreComputer<CINT>& qsc) {
+    double t = qsc.getLQICScores()[i];
+    qsc.setLQIC(i, qsc.getLQICScores()[j]);
+    qsc.setLQIC(j, t);
+}
+
+template<typename CINT>
 void nni_a_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    bool case1 =
+        tree.edge_at(e).primary_link().next().edge().secondary_link().index() ==
+        tree.edge_at(e).primary_link().next().index();
+
     nni_a_inplace(tree, e);
     qsc.recomputeLqicForEdge(tree, e);
-    double lqic_t = qsc.getLQICScores()[tree.edge_at(e).primary_link().next().next().edge().index()];
-    qsc.setLQIC(tree.edge_at(e).primary_link().next().next().edge().index(),
-                qsc.getLQICScores()[tree.edge_at(e).secondary_link().next().edge().index()]);
-    qsc.setLQIC(tree.edge_at(e).secondary_link().next().edge().index(), lqic_t);
+    if (case1)
+        swap_LQIC<CINT>(tree.edge_at(e).primary_link().next().next().edge().index(),
+                        tree.edge_at(e).secondary_link().next().edge().index(), qsc);
+    else
+        swap_LQIC<CINT>(tree.edge_at(e).primary_link().next().edge().index(),
+        tree.edge_at(e).secondary_link().next().next().edge().index(), qsc);
 }
 
 
 template<typename CINT>
 void nni_b_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    bool case1 =
+        tree.edge_at(e).primary_link().next().edge().secondary_link().index() ==
+        tree.edge_at(e).primary_link().next().index();
+
     nni_b_inplace(tree, e);
     qsc.recomputeLqicForEdge(tree, e);
-    double lqic_t = qsc.getLQICScores()[tree.edge_at(e).primary_link().next().next().edge().index()];
-    qsc.setLQIC(tree.edge_at(e).primary_link().next().next().edge().index(),
-                qsc.getLQICScores()[tree.edge_at(e).secondary_link().next().next().edge().index()]);
-    qsc.setLQIC(tree.edge_at(e).secondary_link().next().next().edge().index(), lqic_t);
+    if (case1)
+        swap_LQIC<CINT>(tree.edge_at(e).primary_link().next().next().edge().index(),
+                        tree.edge_at(e).secondary_link().next().next().edge().index(), qsc);
+    else
+        swap_LQIC<CINT>(tree.edge_at(e).primary_link().next().edge().index(),
+        tree.edge_at(e).secondary_link().next().edge().index(), qsc);
+
 }
 
 void nni_a_inplace(Tree& tree, int i) {
@@ -111,23 +173,23 @@ void nni_a_inplace(Tree& tree, int i) {
     } else {
 
         tree.edge_at( i ).primary_link().next().outer().reset_outer(
-            &tree.edge_at( i ).secondary_link().next());
-        tree.edge_at(i).secondary_link().next().outer().reset_outer(
+            &tree.edge_at( i ).secondary_link().next().next());
+        tree.edge_at(i).secondary_link().next().next().outer().reset_outer(
             &tree.edge_at( i ).primary_link().next());
         auto l1 = &tree.edge_at( i ).primary_link().next().outer();
         tree.edge_at( i ).primary_link().next().reset_outer(
-            &tree.edge_at( i ).secondary_link().next().outer());
-        tree.edge_at(i).secondary_link().next().reset_outer(l1);
+            &tree.edge_at( i ).secondary_link().next().next().outer());
+        tree.edge_at(i).secondary_link().next().next().reset_outer(l1);
 
         tree.edge_at(i).primary_link().next().edge().reset_secondary_link(
             &tree.edge_at(i).primary_link().next().outer());
-        tree.edge_at(i).secondary_link().next().edge().reset_secondary_link(
-            &tree.edge_at(i).secondary_link().next().outer());
+        tree.edge_at(i).secondary_link().next().next().edge().reset_secondary_link(
+            &tree.edge_at(i).secondary_link().next().next().outer());
 
         tree.edge_at(i).primary_link().next().outer().reset_edge(
             &tree.edge_at(i).primary_link().next().edge());
-        tree.edge_at(i).secondary_link().next().outer().reset_edge(
-            &tree.edge_at(i).secondary_link().next().edge());
+        tree.edge_at(i).secondary_link().next().next().outer().reset_edge(
+            &tree.edge_at(i).secondary_link().next().next().edge());
     }
 }
 
@@ -161,23 +223,23 @@ void nni_b_inplace(Tree& tree, int i) {
             &tree.edge_at(i).secondary_link().next().next().edge());
     } else {
         tree.edge_at( i ).primary_link().next().outer().reset_outer(
-            &tree.edge_at( i ).secondary_link().next().next());
-        tree.edge_at(i).secondary_link().next().next().outer().reset_outer(
+            &tree.edge_at( i ).secondary_link().next());
+        tree.edge_at(i).secondary_link().next().outer().reset_outer(
             &tree.edge_at( i ).primary_link().next());
         auto l2 = &tree.edge_at( i ).primary_link().next().outer();
         tree.edge_at( i ).primary_link().next().reset_outer(
-            &tree.edge_at( i ).secondary_link().next().next().outer());
-        tree.edge_at(i).secondary_link().next().next().reset_outer(l2);
+            &tree.edge_at( i ).secondary_link().next().outer());
+        tree.edge_at(i).secondary_link().next().reset_outer(l2);
 
         tree.edge_at(i).primary_link().next().edge().reset_secondary_link(
             &tree.edge_at(i).primary_link().next().outer());
-        tree.edge_at(i).secondary_link().next().next().edge().reset_secondary_link(
-            &tree.edge_at(i).secondary_link().next().next().outer());
+        tree.edge_at(i).secondary_link().next().edge().reset_secondary_link(
+            &tree.edge_at(i).secondary_link().next().outer());
 
         tree.edge_at(i).primary_link().next().outer().reset_edge(
             &tree.edge_at(i).primary_link().next().edge());
-        tree.edge_at(i).secondary_link().next().next().outer().reset_edge(
-            &tree.edge_at(i).secondary_link().next().next().edge());
+        tree.edge_at(i).secondary_link().next().outer().reset_edge(
+            &tree.edge_at(i).secondary_link().next().edge());
     }
 }
 

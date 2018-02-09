@@ -6,6 +6,7 @@ using namespace genesis;
 using namespace genesis::tree;
 
 #include "nni.hpp"
+#include "../externals/generator/generator.hpp"
 
 void test_tree_manipulation(
     std::string newickIn, std::string newickExpected, std::function<Tree(Tree)> manipulateTree) {
@@ -20,18 +21,28 @@ void test_tree_manipulation(
 }
 
 TEST_CASE("nni_a") {
-    test_tree_manipulation("((A,B),C,D);", "((C,B),A,D);",
+    test_tree_manipulation("((A,B),C,D);", "((A,C),B,D);",
          [](Tree tree) { return nni_a(tree, tree.root_link().edge().index()); });
 
-    test_tree_manipulation("(((A1,A2),B),C,D);", "((C,B),(A1,A2),D);",
+    test_tree_manipulation("(((A1,A2),B),C,D);", "(((A1,A2),C),B,D);",
                            [](Tree tree) { return nni_a(tree, tree.root_link().edge().index()); });
+
+    test_tree_manipulation("(D,E,(C,(A,B)));", "(D,E,(A,(C,B)));",
+                           [](Tree tree) {
+                               return nni_a(tree, find_node(tree, "A")->link().edge().primary_link().node().link().edge().index()); });
+
 }
 
 TEST_CASE("nni_b") {
-    test_tree_manipulation("((A,B),C,D);", "((A,C),B,D);",
+    test_tree_manipulation("((A,B),C,D);", "((C,B),A,D);",
                            [](Tree tree) { return nni_b(tree, tree.root_link().edge().index()); });
-    test_tree_manipulation("(((A1,A2),(B1,B2)),(C1,C2),(D1,D2));", "(((A1,A2),(C1,C2)),(B1,B2),(D1,D2));",
+
+    test_tree_manipulation("(((A1,A2),B),C,D);", "((C,B),(A1,A2),D);",
                            [](Tree tree) { return nni_b(tree, tree.root_link().edge().index()); });
+
+    test_tree_manipulation("(D,E,(C,(A,B)));", "(D,E,(B,(A,C)));",
+                           [](Tree tree) {
+                               return nni_b(tree, find_node(tree, "A")->link().edge().primary_link().node().link().edge().index()); });
 }
 
 TEST_CASE("nni_a_reverse") {
@@ -61,6 +72,22 @@ TEST_CASE("LQIC after NNI") {
         qsc.recomputeScores(tree, false);
         std::vector<double> lqic2 = qsc.getLQICScores();
         REQUIRE(lqic1 == lqic2);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_a_with_lqic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> lqic1 = qsc.getLQICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> lqic2 = qsc.getLQICScores();
+            //REQUIRE(lqic1 == lqic2);
+            bool eq = true;
+            for (size_t j = 0; j < lqic1.size(); ++j) {
+                if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
     }
 
     SECTION("nni_b"){
@@ -69,5 +96,65 @@ TEST_CASE("LQIC after NNI") {
         qsc.recomputeScores(tree, false);
         std::vector<double> lqic2 = qsc.getLQICScores();
         REQUIRE(lqic1 == lqic2);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_b_with_lqic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> lqic1 = qsc.getLQICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> lqic2 = qsc.getLQICScores();
+            //REQUIRE(lqic1 == lqic2);
+            bool eq = true;
+            for (size_t j = 0; j < lqic1.size(); ++j) {
+                if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+}
+
+TEST_CASE("NNI Generator") {
+    std::string newickIn = "(((A1,A2),B),C,D);";
+    Tree tree = DefaultTreeNewickReader().from_string(newickIn);
+
+    std::vector<Tree> nnis = nni(tree);
+    size_t c = 0;
+    nni_generator genNNI(tree);
+    //genNNI.tree = tree;
+    for (Tree t; genNNI(t);) {
+        REQUIRE(validate_topology(t));
+
+        auto node_comparator = [] (TreeNode const& node_l,TreeNode const& node_r) {return (node_r.is_leaf() and node_l.is_leaf()) or (node_r.data<DefaultNodeData>().name == node_l.data<DefaultNodeData>().name); };
+        auto edge_comparator = [] (TreeEdge const& edge_l,TreeEdge const& edge_r) {(void) edge_l; (void) edge_r; return true;};
+        REQUIRE(genesis::tree::equal(t, nnis[c], node_comparator, edge_comparator));
+        c++;
+    }
+    REQUIRE(c == nnis.size());
+}
+
+TEST_CASE("NNI Generator with LQIC Updates") {
+    omp_set_num_threads(1);
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+    QuartetScoreComputer<uint64_t> qsc2 = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+    //REQUIRE(qsc.getLQICScores() == qsc2.getLQICScores());
+
+    nni_generator_qsc<uint64_t> genNNI(tree, &qsc);
+    int c = 0;
+    for (Tree t; genNNI(t);) {
+        std::cout << "Tree #:" << c++ << std::endl;
+        qsc2.recomputeScores(t, false);
+        //REQUIRE(qsc.getLQICScores() == qsc2.getLQICScores());
+
+        auto lqic1 = qsc.getLQICScores();
+        auto lqic2 = qsc2.getLQICScores();
+        bool eq = true;
+        for (size_t j = 0; j < lqic1.size(); ++j) {
+            if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+        }
+        REQUIRE(eq);
     }
 }

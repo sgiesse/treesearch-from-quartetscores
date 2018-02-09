@@ -11,7 +11,7 @@
 #include "spr_iterator.hpp"
 
 template<typename CINT>
-Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
+Tree old_tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -42,6 +42,47 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_l
         }
         if (max > oldscore) {
             tnew = nb_trees[best];
+            oldscore = max;
+            LOG_INFO << "best: " << max << std::endl;
+            if (max > global_max) {
+                global_max = max;
+                global_best = tnew;
+            }
+        } else {
+            break;
+        }
+    }
+
+    qsc.recomputeScores(global_best, false);
+    //LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    return global_best;
+}
+
+template<typename CINT>
+Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
+    Tree tnew = tree;
+    qsc.recomputeScores(tnew, false);
+    double oldscore = sum_lqic_scores(qsc);
+
+    Tree global_best = tnew;
+    double global_max = oldscore;
+
+    while (true) {
+        double max = std::numeric_limits<double>::lowest();
+        Tree best;
+        qsc.recomputeScores(tnew, false);
+
+        nni_generator_qsc<CINT> genNNI(tnew, &qsc);
+        for (Tree t; genNNI(t);) {
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = Tree(t);
+            }
+        }
+        if (max > oldscore) {
+            tnew = best;
             oldscore = max;
             LOG_INFO << "best: " << max << std::endl;
             if (max > global_max) {

@@ -1,7 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 project (treesearch)
 
-
 set (CMAKE_BUILD_TYPE RELEASE)
 
 # --------------------------------------------------------------------------------------------------
@@ -36,6 +35,7 @@ include_directories( "tclap/include" )
 
 
 include_directories( "src" )
+
 
 add_executable(treesearch "src/main.cpp")
 target_link_libraries (treesearch ${GENESIS_LINK_LIBRARIES} )
