@@ -42,11 +42,15 @@ GENERATOR(nni_generator_qsc) {
     size_t i;
     Tree tree;
     QuartetScoreComputer<CINT>* qsc;
-    nni_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc) { tree = t; qsc = _qsc; }
+    bool restrict_by_lqic;
+    nni_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc, bool _restrict_by_lqic = false) { tree = t; qsc = _qsc; restrict_by_lqic = _restrict_by_lqic; }
     EMIT(Tree)
         for (i = 0; i < tree.edge_count(); i++){
             if (!(tree.edge_at(i).primary_link().node().is_inner() && tree.edge_at(i).secondary_link().node().is_inner()))
                 continue; //edge is no internode
+            
+            if (restrict_by_lqic and qsc->getLQICScores()[i] > 0)
+                continue;
 
             nni_a_with_lqic_update(tree, i, *qsc);
             YIELD(tree);

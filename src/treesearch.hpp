@@ -73,7 +73,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_l
         Tree best;
         qsc.recomputeScores(tnew, false);
 
-        nni_generator_qsc<CINT> genNNI(tnew, &qsc);
+        nni_generator_qsc<CINT> genNNI(tnew, &qsc, restrict_by_lqic);
         for (Tree t; genNNI(t);) {
             double sum = sum_lqic_scores(qsc);
             if (sum > max) {

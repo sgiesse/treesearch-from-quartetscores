@@ -14,6 +14,24 @@ bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
 
 // -----------------------------
 
+void reconnect_node_primary(Tree& tree, size_t edge, size_t new_primary_link) {
+    std::cout << "reconnect_node_primary " << edge << " " << new_primary_link << std::endl;
+    size_t secondary_link = tree.edge_at(edge).secondary_link().index();
+    tree.edge_at(edge).reset_primary_link(&tree.link_at(new_primary_link));
+    tree.link_at(new_primary_link).reset_edge(&tree.edge_at(edge));
+    tree.link_at(new_primary_link).reset_outer(&tree.link_at(secondary_link));
+    tree.link_at(secondary_link).reset_outer(&tree.link_at(new_primary_link));
+}
+
+void reconnect_node_secondary(Tree& tree, size_t edge, size_t new_secondary_link) {
+    std::cout << "reconnect_node_secondary " << edge << " " << new_secondary_link << std::endl;
+    size_t primary_link = tree.edge_at(edge).primary_link().index();
+    tree.edge_at(edge).reset_secondary_link(&tree.link_at(new_secondary_link));
+    tree.link_at(new_secondary_link).reset_edge(&tree.edge_at(edge));
+    tree.link_at(new_secondary_link).reset_outer(&tree.link_at(primary_link));
+    tree.link_at(primary_link).reset_outer(&tree.link_at(new_secondary_link));
+}
+
 bool spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
     size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
