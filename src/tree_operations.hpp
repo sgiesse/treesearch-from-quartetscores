@@ -15,7 +15,7 @@ bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
 // -----------------------------
 
 void reconnect_node_primary(Tree& tree, size_t edge, size_t new_primary_link) {
-    std::cout << "reconnect_node_primary " << edge << " " << new_primary_link << std::endl;
+    //std::cout << "reconnect_node_primary " << edge << " " << new_primary_link << std::endl;
     size_t secondary_link = tree.edge_at(edge).secondary_link().index();
     tree.edge_at(edge).reset_primary_link(&tree.link_at(new_primary_link));
     tree.link_at(new_primary_link).reset_edge(&tree.edge_at(edge));
@@ -24,7 +24,7 @@ void reconnect_node_primary(Tree& tree, size_t edge, size_t new_primary_link) {
 }
 
 void reconnect_node_secondary(Tree& tree, size_t edge, size_t new_secondary_link) {
-    std::cout << "reconnect_node_secondary " << edge << " " << new_secondary_link << std::endl;
+    //std::cout << "reconnect_node_secondary " << edge << " " << new_secondary_link << std::endl;
     size_t primary_link = tree.edge_at(edge).primary_link().index();
     tree.edge_at(edge).reset_secondary_link(&tree.link_at(new_secondary_link));
     tree.link_at(new_secondary_link).reset_edge(&tree.edge_at(edge));

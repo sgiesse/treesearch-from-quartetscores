@@ -3,13 +3,13 @@
 
 #include "tree_operations.hpp"
 
-void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
+void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector<size_t>& invalidLQIC);
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
 
 template<typename CINT>
-void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, size_t lcaIdx, QuartetScoreComputer<CINT>& qsc) {
+void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc) {
 
-    for (auto it : path_set(
+    /*for (auto it : path_set(
              tree.edge_at(pruneEdgeIdx).secondary_link().node(),
              tree.edge_at(regraftEdgeIdx).secondary_link().node(),
              tree.node_at(lcaIdx))) {
@@ -18,7 +18,12 @@ void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, siz
 
         std::cout << it.edge().index() << " ";
         qsc.recomputeLqicForEdge(tree, it.edge().index());
-    }
+        }*/
+    qsc.recomputeLqicForEdge(tree, regraftEdgeIdx);
+    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).primary_link().next().edge().index());
+    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).primary_link().next().next().edge().index());
+    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).secondary_link().next().edge().index());
+    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).secondary_link().next().next().edge().index());
 }
 
 
@@ -36,7 +41,7 @@ bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     return true;
 }
 
-void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
+void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector<size_t>& invalidLQIC) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
     size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
     LOG_DBG << "SPR(" << pruneEdgeIdx << " " << regraftEdgeIdx << ")" << std::endl;
@@ -53,7 +58,6 @@ void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
             link_prune_parent = link_prune_nno;
             link_prune_sibling = link_prune_no;
         }
-        std::cout << link_prune_no << " " << link_prune_nno << " " << link_prune_parent << " " << link_prune_sibling << std::endl;
 
         size_t link_regraft_no = tree.link_at(regraftLinkIdx).next().outer().index();
         size_t link_regraft_nno = tree.link_at(regraftLinkIdx).next().next().outer().index();
@@ -66,6 +70,32 @@ void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
         reconnect_node_secondary(tree, edge_prune_parent, link_prune_sibling);
         reconnect_node_secondary(tree, regraftEdgeIdx, link_prune_parent_secondary);
         reconnect_node_secondary(tree, edge_prune_sibling, link_regraft_secondary);
+
+        std::vector<size_t> i1;
+        std::vector<size_t> i2;
+
+        size_t e = edge_prune_parent;
+        while (!tree.edge_at(e).primary_link().node().is_root()) {
+            i1.push_back(e);
+            e = tree.edge_at(e).primary_link().node().link().edge().index();
+        } i1.push_back(e);
+
+        e = edge_prune_sibling;
+        while (!tree.edge_at(e).primary_link().node().is_root()) {
+            i2.push_back(e);
+            e = tree.edge_at(e).primary_link().node().link().edge().index();
+        } i2.push_back(e);
+
+        //remove LCA -> Root from vector
+        while (i1.size() > 0 and i2.size() > 0 and i1.back() == i2.back()) {
+            i1.pop_back();
+            i2.pop_back();
+        }
+
+        invalidLQIC.clear();
+        invalidLQIC.reserve(i1.size() + i2.size());
+        for (size_t i = 0; i < i1.size(); ++i) invalidLQIC.push_back(i1[i]);
+        for (size_t i = 0; i < i2.size(); ++i) invalidLQIC.push_back(i2[i]);
     }
 
     else {
@@ -106,7 +136,16 @@ void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
                 throw std::runtime_error("SPR not possible");
             }
         }
-
+        size_t i = edge_prune_nn;
+        while (!tree.edge_at(i).primary_link().node().is_root()) {
+            invalidLQIC.push_back(i);
+            i = tree.edge_at(i).primary_link().node().link().edge().index();
+        } invalidLQIC.push_back(i);
+        i = edge_prune_n;
+        while (!tree.edge_at(i).primary_link().node().is_root()) {
+            invalidLQIC.push_back(i);
+            i = tree.edge_at(i).primary_link().node().link().edge().index();
+        } invalidLQIC.push_back(i);
     }
 }
 

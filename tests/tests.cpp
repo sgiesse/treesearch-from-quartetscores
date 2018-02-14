@@ -160,80 +160,80 @@ TEST_CASE("NNI Generator with LQIC Updates") {
     }
 }
 
-/*
+
 TEST_CASE("SPR LQIC update") {
+    omp_set_num_threads(1);
     Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
     size_t m = countEvalTrees("../tests/data/yeast_all.tre");
     QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
 
     std::cout << PrinterCompact().print(tree, print_help) << std::endl;
 
-    TreeInformation t_inf;
-    t_inf.init(tree);
-
     for (size_t i = 0; i < tree.edge_count(); ++i) {
         for (size_t j = 0; j < tree.edge_count(); ++j) {
             if (!validSprMove(tree, i, j)) continue;
             //std::cout << PrinterCompact().print(tree, print_help) << std::endl;
-            new_spr(tree, i, j);
+            std::vector<size_t> invalidLQIC;
+            new_spr(tree, i, j, invalidLQIC);
 
-            std::cout << i << " " << j << std::endl;
-            std::cout << PrinterCompact().print(tree, print_help) << std::endl;
-            size_t lca = t_inf.lowestCommonAncestorIdx(
-                tree.edge_at(i).primary_link().node().index(),
-                tree.edge_at(j).primary_link().node().index(),
-                tree.root_node().index());
-            spr_lqic_update<uint64_t>(tree, i, j, lca, qsc);
+            //std::cout << i << " " << j << std::endl;
+            //std::cout << PrinterCompact().print(tree, print_help) << std::endl;
+            for (size_t l : invalidLQIC) qsc.recomputeLqicForEdge(tree, l);
             std::vector<double> lqic1 = qsc.getLQICScores();
             qsc.recomputeScores(tree, false);
             std::vector<double> lqic2 = qsc.getLQICScores();
-            REQUIRE(lqic1 == lqic2);
+            //REQUIRE(lqic1 == lqic2);
+            bool eq = true;
+            for (size_t j = 0; j < lqic1.size(); ++j) {
+                if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
             //break;
         }
     }
 }
-*/
 
 
 TEST_CASE("SPR") {
+    std::vector<size_t> invalidLQIC;
     test_tree_manipulation("((A,B),((C,(D,E)),((F,(G,H)),I)),(J,K));", "((A,B),(C,(((F,(G,H)),(D,E)),I)),(J,K));",
-                           [](Tree tree) {
+                           [&invalidLQIC](Tree tree) {
                                size_t i = find_node(tree, "D")->link().edge().primary_link().node().link().edge().index();
                                size_t j = find_node(tree, "F")->link().edge().primary_link().node().link().edge().index();
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                std::cout << i << " " << j << std::endl;
-                               new_spr(tree, i, j);
+                               new_spr(tree, i, j, invalidLQIC);
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                return tree; });
 
     test_tree_manipulation("((A,B),((C,(D,E)),((F,(G,H)),I)),(J,K));", "(B,((C,(D,E)),((F,(G,H)),I)),(J,(A,K)));",
-                           [](Tree tree) {
+                           [&invalidLQIC](Tree tree) {
                                size_t i = find_node(tree, "A")->link().edge().index();
                                size_t j = find_node(tree, "K")->link().edge().index();
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                std::cout << i << " " << j << std::endl;
-                               new_spr(tree, i, j);
+                               new_spr(tree, i, j, invalidLQIC);
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                return tree; });
 
     test_tree_manipulation("((A,B),((C,(D,E)),((F,(G,H)),I)),(J,K));", "((A,B),(F,(G,H)),(I,((J,K),(C,(D,E)))));",
-                           [](Tree tree) {
+                           [&invalidLQIC](Tree tree) {
                                size_t i = find_node(tree, "A")->link().edge().primary_link().node().link().edge().index();
                                size_t j = find_node(tree, "F")->link().edge().primary_link().node().link().edge().index();
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                std::cout << i << " " << j << std::endl;
-                               new_spr(tree, i, j);
+                               new_spr(tree, i, j, invalidLQIC);
                                std::cout << validate_topology(tree) << std::endl;
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                return tree; });
 
     test_tree_manipulation("((A,B),((C,(D,E)),((F,(G,H)),I)),(J,K));", "((F,(G,H)),(I,((A,B),(C,(D,E)))),(J,K));",
-                           [](Tree tree) {
+                           [&invalidLQIC](Tree tree) {
                                size_t i = find_node(tree, "J")->link().edge().primary_link().node().link().edge().index();
                                size_t j = find_node(tree, "F")->link().edge().primary_link().node().link().edge().index();
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                std::cout << i << " " << j << std::endl;
-                               new_spr(tree, i, j);
+                               new_spr(tree, i, j, invalidLQIC);
                                std::cout << validate_topology(tree) << std::endl;
                                std::cout << PrinterCompact().print(tree, print_help) << std::endl;
                                return tree; });
@@ -255,3 +255,4 @@ TEST_CASE("valid SPR move") {
     REQUIRE(validSprMove(tree, 12, 14) == false);
     REQUIRE(validSprMove(tree, 12, 12) == false);
 }
+
