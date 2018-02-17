@@ -2,30 +2,86 @@
 #define SPR_NNI
 
 #include "tree_operations.hpp"
+#include "../externals/generator/generator.hpp"
 
-void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector<size_t>& invalidLQIC);
+//-----------------------------------------------------
+void spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
+template<typename CINT> void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc);
+//------------------------------------------------------
+
+
+template<typename CINT>
+GENERATOR(spr_generator_qsc) {
+    size_t i;
+    size_t j;
+    std::vector<double> lqic;
+    std::vector<size_t> invalidLQIC;
+    Tree tree;
+    QuartetScoreComputer<CINT>* qsc;
+    // TODO restrict_by_lqic
+    spr_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc) { tree = t; qsc = _qsc; }
+
+    EMIT(Tree)
+        for (i = 0; i < tree.edge_count(); ++i) {
+            for (j = 0; j < tree.edge_count(); ++j) {
+                if (!validSprMove(tree, i, j)) continue;
+
+                spr(tree, i, j);
+                spr_lqic_update(tree, i, j, *qsc);
+                YIELD(tree);
+                spr(tree, i, j);
+                spr_lqic_update(tree, i, j, *qsc);
+            }
+        }
+    STOP;
+};
 
 template<typename CINT>
 void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc) {
+    std::vector<size_t> i1;
+    std::vector<size_t> i2;
+    std::vector<size_t> invalidLQIC;
 
-    /*for (auto it : path_set(
-             tree.edge_at(pruneEdgeIdx).secondary_link().node(),
-             tree.edge_at(regraftEdgeIdx).secondary_link().node(),
-             tree.node_at(lcaIdx))) {
-        //if (it.is_lca()) continue;
-        //u_link = &it.link().outer();
+    size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
+    size_t link_prune_no = tree.link_at(pruneLinkIdx).next().outer().index();
+    size_t link_prune_nno = tree.link_at(pruneLinkIdx).next().next().outer().index();
+    if (tree.link_at(pruneLinkIdx).node().is_root()) {
+        i1.push_back(tree.link_at(link_prune_no).edge().index());
+        i1.push_back(tree.link_at(link_prune_nno).edge().index());
+    } else {
+        size_t link_prune_sibling;
+        if (link_prune_no == tree.link_at(pruneLinkIdx).node().link().edge().primary_link().index())
+            link_prune_sibling = link_prune_nno;
+        else link_prune_sibling = link_prune_no;
+        size_t e = tree.link_at(link_prune_sibling).edge().index();
+        while (!tree.edge_at(e).primary_link().node().is_root()) {
+            i1.push_back(e);
+            e = tree.edge_at(e).primary_link().node().link().edge().index();
+        } i1.push_back(e);
+    }
 
-        std::cout << it.edge().index() << " ";
-        qsc.recomputeLqicForEdge(tree, it.edge().index());
-        }*/
-    qsc.recomputeLqicForEdge(tree, regraftEdgeIdx);
-    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).primary_link().next().edge().index());
-    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).primary_link().next().next().edge().index());
-    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).secondary_link().next().edge().index());
-    qsc.recomputeLqicForEdge(tree, tree.edge_at(regraftEdgeIdx).secondary_link().next().next().edge().index());
+    size_t e = regraftEdgeIdx;
+    while (!tree.edge_at(e).primary_link().node().is_root()) {
+        i2.push_back(e);
+        e = tree.edge_at(e).primary_link().node().link().edge().index();
+    } i2.push_back(e);
+
+    /* TODO
+    if (!tree.link_at(pruneLinkIdx).node().is_root()) {
+        //remove LCA -> Root from vector
+        while (i1.size() > 0 and i2.size() > 0 and i1.back() == i2.back()) {
+            i1.pop_back();
+            i2.pop_back();
+        }
+    }*/
+
+    invalidLQIC.reserve(i1.size() + i2.size() + 1);
+    for (size_t i = 0; i < i1.size(); ++i) invalidLQIC.push_back(i1[i]);
+    for (size_t i = 0; i < i2.size(); ++i) invalidLQIC.push_back(i2[i]);
+
+    for (size_t l : invalidLQIC) qsc.recomputeLqicForEdge(tree, l);
 }
-
 
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     if (pruneEdgeIdx >= tree.edge_count() or regraftEdgeIdx >= tree.edge_count()) return false;
@@ -41,9 +97,8 @@ bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     return true;
 }
 
-void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector<size_t>& invalidLQIC) {
+void spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     size_t pruneLinkIdx = tree.edge_at(pruneEdgeIdx).primary_link().index();
-    size_t regraftLinkIdx = tree.edge_at(regraftEdgeIdx).primary_link().index();
     LOG_DBG << "SPR(" << pruneEdgeIdx << " " << regraftEdgeIdx << ")" << std::endl;
 
     if (!tree.link_at(pruneLinkIdx).node().is_root()) {
@@ -59,9 +114,6 @@ void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector
             link_prune_sibling = link_prune_no;
         }
 
-        size_t link_regraft_no = tree.link_at(regraftLinkIdx).next().outer().index();
-        size_t link_regraft_nno = tree.link_at(regraftLinkIdx).next().next().outer().index();
-
         size_t edge_prune_sibling = tree.link_at(link_prune_sibling).edge().index();
         size_t edge_prune_parent = tree.link_at(link_prune_parent).edge().index();
         size_t link_prune_parent_secondary = tree.edge_at(edge_prune_parent).secondary_link().index();
@@ -71,81 +123,34 @@ void new_spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, std::vector
         reconnect_node_secondary(tree, regraftEdgeIdx, link_prune_parent_secondary);
         reconnect_node_secondary(tree, edge_prune_sibling, link_regraft_secondary);
 
-        std::vector<size_t> i1;
-        std::vector<size_t> i2;
-
-        size_t e = edge_prune_parent;
-        while (!tree.edge_at(e).primary_link().node().is_root()) {
-            i1.push_back(e);
-            e = tree.edge_at(e).primary_link().node().link().edge().index();
-        } i1.push_back(e);
-
-        e = edge_prune_sibling;
-        while (!tree.edge_at(e).primary_link().node().is_root()) {
-            i2.push_back(e);
-            e = tree.edge_at(e).primary_link().node().link().edge().index();
-        } i2.push_back(e);
-
-        //remove LCA -> Root from vector
-        while (i1.size() > 0 and i2.size() > 0 and i1.back() == i2.back()) {
-            i1.pop_back();
-            i2.pop_back();
-        }
-
-        invalidLQIC.clear();
-        invalidLQIC.reserve(i1.size() + i2.size());
-        for (size_t i = 0; i < i1.size(); ++i) invalidLQIC.push_back(i1[i]);
-        for (size_t i = 0; i < i2.size(); ++i) invalidLQIC.push_back(i2[i]);
+        swap_edges(tree, regraftEdgeIdx, edge_prune_parent);
     }
 
     else {
         // Case 2: Prune Node is root
-
         size_t link_prune_no = tree.link_at(pruneLinkIdx).next().outer().index();
         size_t link_prune_nno = tree.link_at(pruneLinkIdx).next().next().index();
-        size_t link_regraft_no = tree.link_at(regraftLinkIdx).next().outer().index();
-        size_t link_regraft_nno = tree.link_at(regraftLinkIdx).next().next().outer().index();
         size_t edge_prune_n = tree.link_at(link_prune_no).edge().index();
         size_t edge_prune_nn = tree.link_at(link_prune_nno).edge().index();
         size_t link_regraft_secondary = tree.edge_at(regraftEdgeIdx).secondary_link().index();
 
-        reconnect_node_primary(tree, edge_prune_nn, link_prune_no);
-        reconnect_node_secondary(tree, regraftEdgeIdx, link_prune_nno);
-        reconnect_node_secondary(tree, edge_prune_n, link_regraft_secondary);
-
-        int c = 0;
-        for(auto it : preorder(tree.root_node())) {
-            if (it.link().index() != it.edge().secondary_link().index()
-                and it.node().index() != tree.root_node().index()) {
-                // revert edge direction
-                size_t lp = it.edge().primary_link().index();
-                size_t ls = it.edge().secondary_link().index();
-                it.edge().reset_primary_link(&tree.link_at(ls));
-                it.edge().reset_secondary_link(&tree.link_at(lp));
-            }
-            if (it.node().primary_link().index() != it.edge().primary_link().index()
-                and it.node().index() != tree.root_node().index()) {
-                it.node().reset_primary_link(&it.edge().secondary_link());
-            }
-            c++;
-            if (c > (int)tree.link_count()) {
-                LOG_ERR << "SPR done: preorder endless loop detected" << std::endl;
-                validate_topology(tree);
-                LOG_ERR << PrinterTable().print(tree);
-                //return false;
-                throw std::runtime_error("SPR not possible");
-            }
+        bool regraftInNext = false;
+        for(auto it : eulertour(tree.link_at(pruneLinkIdx).next().outer().next())) {
+            if (it.link().index() == tree.link_at(pruneLinkIdx).next().next().index()) break;
+            if (it.edge().index() == regraftEdgeIdx) regraftInNext = true;
         }
-        size_t i = edge_prune_nn;
-        while (!tree.edge_at(i).primary_link().node().is_root()) {
-            invalidLQIC.push_back(i);
-            i = tree.edge_at(i).primary_link().node().link().edge().index();
-        } invalidLQIC.push_back(i);
-        i = edge_prune_n;
-        while (!tree.edge_at(i).primary_link().node().is_root()) {
-            invalidLQIC.push_back(i);
-            i = tree.edge_at(i).primary_link().node().link().edge().index();
-        } invalidLQIC.push_back(i);
+
+        size_t link_prune_n_sec = tree.edge_at(edge_prune_n).secondary_link().index();
+        size_t link_prune_nn_sec = tree.edge_at(edge_prune_nn).secondary_link().index();
+        if (regraftInNext) {
+            reconnect_node_secondary(tree, edge_prune_n, link_regraft_secondary);
+            reconnect_node_secondary(tree, edge_prune_nn, link_prune_n_sec);
+            reconnect_node_secondary(tree, regraftEdgeIdx, link_prune_nn_sec);
+        } else {
+            reconnect_node_secondary(tree, edge_prune_nn, link_regraft_secondary);
+            reconnect_node_secondary(tree, edge_prune_n, link_prune_nn_sec);
+            reconnect_node_secondary(tree, regraftEdgeIdx, link_prune_n_sec);
+        }
     }
 }
 

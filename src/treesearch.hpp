@@ -8,7 +8,7 @@
 #include "utils.hpp"
 #include "tree_operations.hpp"
 #include "nni.hpp"
-#include "spr_iterator.hpp"
+#include "spr.hpp"
 
 template<typename CINT>
 Tree old_tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
@@ -101,6 +101,51 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_l
 }
 
 template<typename CINT>
+Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
+    Tree tnew = tree;
+    qsc.recomputeScores(tnew, false);
+    double oldscore = sum_lqic_scores(qsc);
+
+    Tree global_best = tnew;
+    double global_max = oldscore;
+
+    while (true) {
+        double max = std::numeric_limits<double>::lowest();
+        Tree best;
+        qsc.recomputeScores(tnew, false);
+
+        //nni_generator_qsc<CINT> genNNI(tnew, &qsc, restrict_by_lqic);
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc);
+        for (Tree t; genSPR(t);) {
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = Tree(t);
+            }
+        }
+
+        if (max > oldscore) {
+            tnew = best;
+            oldscore = max;
+            LOG_INFO << "best: " << max << std::endl;
+            //qsc.recomputeScores(tnew, false);
+            //LOG_INFO << "best (re): " << sum_lqic_scores(qsc) << std::endl;
+            if (max > global_max) {
+                global_max = max;
+                global_best = tnew;
+            }
+        } else {
+            break;
+        }
+    }
+
+    qsc.recomputeScores(global_best, false);
+    //LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    return global_best;
+}
+
+template<typename CINT>
 Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
@@ -110,7 +155,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
     double max = oldscore;
 
     while (true) {
-        SPRtree sprs(best);
+        /*SPRtree sprs(best);
         if (restrict_by_lqic) {
             qsc.recomputeScores(best, false);
             std::vector<double> lqic = qsc.getLQICScores();
@@ -121,6 +166,20 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
         for (auto it : sprs) {
             Tree t(it.get());
             qsc.recomputeScores(t, false);
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = t;
+                found_tree = true;
+                break;
+            }
+            }*/
+
+        bool found_tree = false;
+        tnew = best;
+        qsc.recomputeScores(tnew, false);
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc); //TODO restrict_by_lqic
+        for (Tree t; genSPR(t);) {
             double sum = sum_lqic_scores(qsc);
             if (sum > max) {
                 max = sum;
@@ -140,7 +199,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
 }
 
 template<typename CINT>
-Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+Tree old_tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -150,7 +209,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 
     while (true) {
         double max = std::numeric_limits<double>::lowest();
-        int best = 0;
+        /*int best = 0;
         std::vector<Tree> nb_trees;
         for (size_t i = 0; i < tnew.edge_count(); ++i) {
             std::vector<bool> spr_ok(tnew.edge_count(), true);
@@ -185,8 +244,21 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
                 best = i;
             }
         }
+        */
+        Tree best = tnew;
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc);
+        int c = 0;
+        for (Tree t; genSPR(t);) {
+            c++;
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = t;
+            }
+        }
+        std::cout << "Trees " << c << std::endl;
         if (max > oldscore) {
-            tnew = nb_trees[best];
+            tnew = best;
             oldscore = max;
             LOG_INFO << "best: " << max << std::endl;
             if (max > global_max) {
@@ -198,12 +270,11 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         }
     }
 
-    qsc.recomputeScores(global_best, false);
-    LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    //qsc.recomputeScores(global_best, false);
+    //LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
 
     return global_best;
 }
-
 
 
 Tree random_tree_from_leaves(std::vector<std::string> leaves) {
@@ -338,7 +409,9 @@ void mcmc_helper(Tree& current, Tree& candidate, double T, double& score_min, do
             candidate = nni_a(current, e);
         else
             candidate = nni_b(current, e);
-    } else { //SPR
+    }
+//TODO
+/*else { //SPR
         candidate = Tree(current);
         size_t p = Random::get_rand_int(0, current.edge_count()-1);
         size_t r = Random::get_rand_int(0, current.edge_count()-1);
@@ -346,7 +419,7 @@ void mcmc_helper(Tree& current, Tree& candidate, double T, double& score_min, do
             p = Random::get_rand_int(0, current.edge_count()-1);
             r = Random::get_rand_int(0, current.edge_count()-1);
         }
-    }
+        }*/
     qsc.recomputeScores(candidate, false);
     double score = sum_lqic_scores(qsc);
     double score_interp;

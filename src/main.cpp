@@ -16,7 +16,6 @@
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
 #include "utils.hpp"
-#include "spr_iterator.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
