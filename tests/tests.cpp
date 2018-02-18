@@ -222,7 +222,7 @@ TEST_CASE("SPR Generator") {
     size_t m = countEvalTrees("../tests/data/yeast_all.tre");
     QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
 
-    spr_generator_qsc<uint64_t> genSPR(tree, &qsc);
+    spr_generator_qsc<uint64_t> genSPR(tree, &qsc, false);
     for (Tree t; genSPR(t);) {
         REQUIRE(validate_topology(t));
         std::vector<double> lqic1 = qsc.getLQICScores();

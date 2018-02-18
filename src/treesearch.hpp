@@ -115,7 +115,7 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool rest
         qsc.recomputeScores(tnew, false);
 
         //nni_generator_qsc<CINT> genNNI(tnew, &qsc, restrict_by_lqic);
-        spr_generator_qsc<CINT> genSPR(tnew, &qsc);
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc, restrict_by_lqic);
         for (Tree t; genSPR(t);) {
             double sum = sum_lqic_scores(qsc);
             if (sum > max) {
@@ -178,7 +178,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
         bool found_tree = false;
         tnew = best;
         qsc.recomputeScores(tnew, false);
-        spr_generator_qsc<CINT> genSPR(tnew, &qsc); //TODO restrict_by_lqic
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc, restrict_by_lqic);
         for (Tree t; genSPR(t);) {
             double sum = sum_lqic_scores(qsc);
             if (sum > max) {
@@ -199,7 +199,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
 }
 
 template<typename CINT>
-Tree old_tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+Tree old_tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -246,7 +246,7 @@ Tree old_tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         }
         */
         Tree best = tnew;
-        spr_generator_qsc<CINT> genSPR(tnew, &qsc);
+        spr_generator_qsc<CINT> genSPR(tnew, &qsc, restrict_by_lqic);
         int c = 0;
         for (Tree t; genSPR(t);) {
             c++;

@@ -8,6 +8,7 @@
 void spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx);
 template<typename CINT> void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc);
+bool has_negative_lqic_on_spr_path(const Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, const std::vector<double>& lqic);
 //------------------------------------------------------
 
 
@@ -19,13 +20,14 @@ GENERATOR(spr_generator_qsc) {
     std::vector<size_t> invalidLQIC;
     Tree tree;
     QuartetScoreComputer<CINT>* qsc;
-    // TODO restrict_by_lqic
-    spr_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc) { tree = t; qsc = _qsc; }
+    bool restrict_by_lqic;
+    spr_generator_qsc(Tree t, QuartetScoreComputer<CINT>* _qsc, bool _restrict_by_lqic) { tree = t; qsc = _qsc; restrict_by_lqic = _restrict_by_lqic; }
 
     EMIT(Tree)
         for (i = 0; i < tree.edge_count(); ++i) {
             for (j = 0; j < tree.edge_count(); ++j) {
                 if (!validSprMove(tree, i, j)) continue;
+                if (restrict_by_lqic and !has_negative_lqic_on_spr_path(tree, i, j, qsc->getLQICScores())) continue;
 
                 spr(tree, i, j);
                 spr_lqic_update(tree, i, j, *qsc);
@@ -95,6 +97,39 @@ bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     }
 
     return true;
+}
+
+bool has_negative_lqic_on_spr_path(const Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, const std::vector<double>& lqic) {
+    std::vector<size_t> i1;
+    std::vector<size_t> i2;
+
+    if (!tree.edge_at(pruneEdgeIdx).primary_link().node().is_root()) {
+        size_t e = tree.edge_at(pruneEdgeIdx).primary_link().node().link().edge().index();
+        while (!tree.edge_at(e).primary_link().node().is_root()) {
+            i1.push_back(e);
+            e = tree.edge_at(e).primary_link().node().link().edge().index();
+        }
+        i1.push_back(e);
+    }
+
+    if (!tree.edge_at(regraftEdgeIdx).primary_link().node().is_root()) {
+        size_t e = tree.edge_at(regraftEdgeIdx).primary_link().node().link().edge().index();
+        while (!tree.edge_at(e).primary_link().node().is_root()) {
+            i2.push_back(e);
+            e = tree.edge_at(e).primary_link().node().link().edge().index();
+        }
+        i2.push_back(e);
+    }
+
+    while (i1.size() > 0 and i2.size() > 0 and i1.back() == i2.back()) {
+        i1.pop_back();
+        i2.pop_back();
+    }
+
+    for (size_t i = 0; i < i1.size(); ++i) if (lqic[i1[i]] < 0) return true;
+    for (size_t i = 0; i < i2.size(); ++i) if (lqic[i2[i]] < 0) return true;
+
+    return false;
 }
 
 void spr(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
