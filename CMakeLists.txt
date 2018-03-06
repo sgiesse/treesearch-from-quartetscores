@@ -31,7 +31,7 @@ set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GENESIS_EXE_LINKER_FLAG
 # Add QuartetScores
 include_directories ("${PROJECT_SOURCE_DIR}/QuartetScores/src")
 
-include_directories( "tclap/include" )
+include_directories( "${PROJECT_SOURCE_DIR}/QuartetScores/tclap/include" )
 
 
 include_directories( "src" )
