@@ -70,10 +70,8 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
     else if (algorithm == "combo")
         final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
-    else if (algorithm == "mcmc")
-        final_tree = mcmc<CINT>(start_tree, qsc);
-    else if (algorithm == "mcmcmc")
-        final_tree = mcmcmc<CINT>(start_tree, qsc);
+    else if (algorithm == "simann")
+        final_tree = simulated_annealing<CINT>(start_tree, qsc);
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
@@ -116,7 +114,7 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
         cmd.add(startTreeMethodArg);
 
-        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no", "mcmc", "mcmcmc" };
+        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no", "simann" };
         TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
         TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
         cmd.add(algorithmArg);

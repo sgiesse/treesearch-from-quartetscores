@@ -398,153 +398,108 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
 
 
 template<typename CINT>
-void mcmc_helper(Tree& current, Tree& candidate, double T, double& score_min, double& score_max, double& score_curr, QuartetScoreComputer<CINT>& qsc) {
-    const int m = Random::get_rand_int(0, 1);
-    if (m == 0) { //NNI
-        const int ab = Random::get_rand_int(0, 1);
-        int e = Random::get_rand_int(0, current.edge_count()-1);
-        while (current.edge_at(e).secondary_link().node().is_leaf())
-            e = Random::get_rand_int(0, current.edge_count()-1);
+void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+    //const int m = Random::get_rand_int(0, 1);
+    const float m = Random::get_rand_float(0,1);
+    const int ab = Random::get_rand_int(0, 1);
+    size_t e, p, r;
+    if (m < 0.8) { //NNI
+        e = Random::get_rand_int(0, tree.edge_count()-1);
+        while (tree.edge_at(e).secondary_link().node().is_leaf())
+            e = Random::get_rand_int(0, tree.edge_count()-1);
         if (ab == 0)
-            candidate = nni_a(current, e);
+            nni_a_with_lqic_update(tree, e, qsc);
         else
-            candidate = nni_b(current, e);
+            nni_b_with_lqic_update(tree, e, qsc);
     }
-//TODO
-/*else { //SPR
-        candidate = Tree(current);
-        size_t p = Random::get_rand_int(0, current.edge_count()-1);
-        size_t r = Random::get_rand_int(0, current.edge_count()-1);
-        while (!spr(candidate, p, r)) {
-            p = Random::get_rand_int(0, current.edge_count()-1);
-            r = Random::get_rand_int(0, current.edge_count()-1);
+    else { //SPR
+        p = Random::get_rand_int(0, tree.edge_count()-1);
+        r = Random::get_rand_int(0, tree.edge_count()-1);
+        while (!validSprMove(tree, p, r)) {
+            p = Random::get_rand_int(0, tree.edge_count()-1);
+            r = Random::get_rand_int(0, tree.edge_count()-1);
         }
-        }*/
-    qsc.recomputeScores(candidate, false);
-    double score = sum_lqic_scores(qsc);
-    double score_interp;
-    double score_curr_interp;
-
-    if (score < score_min) score_min = score;
-    if (score > score_max) score_max = score;
-
-    if (score < 0) score_interp = (score_min - score) / score_min * 0.5;
-    else score_interp = 0.5 + score / score_max * 0.5;
-
-    if (score_curr < 0) score_curr_interp = (score_min - score_curr) / score_min * 0.5;
-    else score_curr_interp = 0.5 + score_curr / score_max * 0.5;
-
-    score_interp = pow(score_interp, 4);
-    score_curr_interp = pow(score_curr_interp, 4);
-
-    double R = score_interp / score_curr_interp;
-    //std::cout << T << " " << R << " " << pow(R, 1/T) <<  "\n";
-    //std::cout << score << " " << score_curr << " " << R << std::endl;
-    if (R > 1) {
-        current = candidate;
-        score_curr = score;
-    }
-    else {
-        if (Random::get_rand_float(0.0, 1.0) < pow(R, 1/T)) {
-            current = candidate;
-            score_curr = score;
-        }
+        spr(tree, p, r);
+        spr_lqic_update(tree, p, r, qsc);
     }
 }
 
-
 template<typename CINT>
-Tree mcmc(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     Tree current(tree);
-    qsc.recomputeScores(current, false);
-    double score_start = sum_lqic_scores(qsc);
-    double score_min = score_start;
-    double score_max = score_start;
-    if (score_start < 0) score_max = 0;
-    else score_min = 0;
+    const size_t M = 0.1*tree.edge_count();
+    const size_t Ntrial = 100;
+    const size_t MAX_EPOCH_LENGTH = 0.1*tree.edge_count()*tree.edge_count();
 
-    const int N = 2000;
-
-    for (int i = 0; i < N; ++i) {
-        qsc.recomputeScores(current, false);
+    double trial_sum_downhill = 0;
+    size_t trial_count_downhill = 0;
+    for (size_t i = 0; i < Ntrial or trial_count_downhill < 2; ++i) {
         double score_curr = sum_lqic_scores(qsc);
+        Tree candidate(current);
+        simulated_annealing_helper(candidate, qsc);
+        double score = sum_lqic_scores(qsc);
+        if (score < score_curr) {
+            trial_sum_downhill += (score - score_curr);
+            trial_count_downhill++;
+        }
+        current = candidate;
+    }
+    current = Tree(tree);
+    qsc.recomputeScores(current, false);
 
-        LOG_INFO << score_curr << std::endl;
+    const double P0 = 0.2;
+    const double T0 = (trial_sum_downhill/trial_count_downhill)/log(P0);
+    const double TM = 0.001;//1/T0/T0;
+    const double alpha = pow(TM/T0, 1.0/(M-1));
+    std::cout << T0 << " " << alpha << std::endl;
+    double T = T0;
 
-        double T = pow(2.0, (N-i)/(N/10)-7);
-        Tree candidate;
-        mcmc_helper(current, candidate, T, score_min, score_max,  score_curr, qsc);
+    size_t C = 0;
+    const size_t MAX_NO_CHANGE = 2;
+    const double P_ACCEPT = 0.02;
+    while (C < MAX_NO_CHANGE) {
+        size_t accepted = 0;
+        for (size_t i = 0; i < MAX_EPOCH_LENGTH; ++i) {
+            std::vector<double> lqic = qsc.getLQICScores();
+            double score_curr = sum_lqic_scores(qsc);
+            LOG_INFO << i << " " << score_curr << std::endl;
+    
+            Tree candidate(current);
+            simulated_annealing_helper(candidate, qsc);
+    
+            double score = sum_lqic_scores(qsc);
+
+            double R = exp((score-score_curr)/T);
+            std::cout << T << " " << score << " " << score_curr << " " << R << std::endl;
+    
+            if (R > 1) {
+                current = candidate;
+                accepted++;
+            } else {
+                if (Random::get_rand_float(0.0, 1.0) < R) {
+                    current = candidate;
+                    accepted++;
+                }
+                else {
+                    for (size_t e = 0; e < current.edge_count(); ++e) {
+                        qsc.setLQIC(e, lqic[e]);
+                    }
+                }
+            }
+        }
+        if (accepted/(double)MAX_EPOCH_LENGTH < P_ACCEPT) C++;
+        else C = 0;
+        
+        T = alpha * T;
     }
 
     return current;
 }
 
-
-
-template<typename CINT>
-Tree mcmcmc(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
-    Tree current(tree);
-    qsc.recomputeScores(current, false);
-    double score_start = sum_lqic_scores(qsc);
-    double score_min = score_start;
-    double score_max = score_start;
-    if (score_start < 0) score_max = 0;
-    else score_min = 0;
-
-    const int N = 2000;
-    const int M = 4;
-    std::vector<Tree> currents;
-    std::vector<double> Ts;
-    std::vector<double> scores(M);
-
-    for (int i = 0; i < M; ++i) {
-        currents.push_back(Tree(current));
-        //Ts.push_back(pow(2.0, i-(M/2)-2));
-        Ts.push_back(pow(2.0, i-M+2));
-        std::cout << pow(2.0, i-M+2) << "\n";
-
-        qsc.recomputeScores(currents[i], false);
-        scores[i] = sum_lqic_scores(qsc);
-    }
-
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < M; ++j) {
-            qsc.recomputeScores(currents[j], false);
-            scores[j] = sum_lqic_scores(qsc);
-
-            if (j == 0) {LOG_INFO << scores[j] << "\n";}
-
-            Tree candidate;
-            mcmc_helper(currents[j], candidate, Ts[j], score_min, score_max,  scores[j], qsc);
-        }
-
-        size_t c1 = Random::get_rand_int(0, M-1);
-        size_t c2 = Random::get_rand_int(0, M-1);
-        while (c1 == c2) c2 = Random::get_rand_int(0, M-1);
-        double p = (pow(scores[c1], 1/Ts[c1]) * pow(scores[c2], 1/Ts[c2]))/(pow(scores[c1], 1/Ts[c2]) * pow(scores[c2], 1/Ts[c1]));
-        //if (Random::get_rand_float(0.0, 1.0) < p) {
-        if (p>=1) { // TODO
-            Tree tmp(currents[c1]);
-            currents[c1] = currents[c2];
-            currents[c2] = tmp;
-            if (c1 == 0 or c2 == 0) std::cout << "swapped " << c1 << " <-> " << c2 << " " << p <<  "\n";
-        }
-
-        /*for (int j = 0; j < M; ++j) {
-            std::cout << scores[j] << " ";
-        } std::cout << std::endl;*/
-    }
-
-    return currents[0];
-}
-
-
-
 uint64_t treecount(uint64_t n) {
     if (n == 3) return 1;
     return treecount(n-1) * (2*n-5);
 }
-
 
 template<typename CINT>
 void _rec_exhaustive_search(Tree& tree, Tree& best, std::vector<std::string>& leaves, int li, QuartetScoreComputer<CINT>& qsc, double& max, int& c) {
