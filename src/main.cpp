@@ -21,7 +21,7 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached) {
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
@@ -63,6 +63,9 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
     LOG_INFO << "Sum lqic start Tree: " << sum_lqic_scores(qsc) << std::endl;
 
+    if (cached) qsc.enableCache();
+    else qsc.disableCache();
+
     Tree final_tree;
     if (algorithm == "nni")
         final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
@@ -96,6 +99,7 @@ int main(int argc, char* argv[]) {
     std::string pathToStartTree;
     bool restrictByLqic;
     int numThreads;
+    bool cached;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -131,6 +135,9 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<int> numThreadsArg("t", "numThreads", "Number of Threads", false, 1, "int");
         cmd.add(numThreadsArg);
 
+        TCLAP::SwitchArg cachedArg("c", "cached", "Cache LQIC Scores.");
+        cmd.add(cachedArg);
+
         cmd.parse(argc, argv);
 
         pathToReferenceTree = refArg.getValue();
@@ -139,6 +146,7 @@ int main(int argc, char* argv[]) {
         pathToStartTree = startTreeArg.getValue();
         restrictByLqic = restrictByLqicArg.getValue();
         numThreads = numThreadsArg.getValue();
+        cached = cachedArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -166,13 +174,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
 
     LOG_BOLD << "Done" << std::endl;
 

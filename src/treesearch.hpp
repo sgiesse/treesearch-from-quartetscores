@@ -424,6 +424,10 @@ void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     }
 }
 
+std::string treehash(Tree& tree) {
+    return DefaultTreeNewickWriter().to_string(tree);
+}
+
 template<typename CINT>
 Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     Tree current(tree);
@@ -457,24 +461,30 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     size_t C = 0;
     const size_t MAX_NO_CHANGE = 2;
     const double P_ACCEPT = 0.02;
+
+    Tree best = current;
+    double max = sum_lqic_scores(qsc);
+
     while (C < MAX_NO_CHANGE) {
         size_t accepted = 0;
+        LOG_INFO << C << "/" << MAX_NO_CHANGE << " --  T:" << T << "  --  current: " <<  sum_lqic_scores(qsc) << std::endl;
         for (size_t i = 0; i < MAX_EPOCH_LENGTH; ++i) {
             std::vector<double> lqic = qsc.getLQICScores();
             double score_curr = sum_lqic_scores(qsc);
-            LOG_INFO << i << " " << score_curr << std::endl;
     
             Tree candidate(current);
             simulated_annealing_helper(candidate, qsc);
     
             double score = sum_lqic_scores(qsc);
-
             double R = exp((score-score_curr)/T);
-            std::cout << T << " " << score << " " << score_curr << " " << R << std::endl;
     
             if (R > 1) {
                 current = candidate;
                 accepted++;
+                if (score > max) {
+                    max = score;
+                    best = Tree(candidate);
+                }
             } else {
                 if (Random::get_rand_float(0.0, 1.0) < R) {
                     current = candidate;
@@ -490,10 +500,9 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
         if (accepted/(double)MAX_EPOCH_LENGTH < P_ACCEPT) C++;
         else C = 0;
         
-        T = alpha * T;
+        T = alpha * T;  
     }
-
-    return current;
+    return best;
 }
 
 uint64_t treecount(uint64_t n) {
