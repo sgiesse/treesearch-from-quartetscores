@@ -22,6 +22,8 @@ using namespace genesis::tree;
 
 template<typename CINT>
 void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached) {
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
@@ -35,6 +37,11 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         LOG_INFO << "Read start tree from file";
         start_tree = DefaultTreeNewickReader().from_file(pathToStartTree);
     }
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //LOG_INFO << "Finished computing start tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " microseconds." << std::endl;
+    LOG_INFO << "Finished computing start tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
+
     LOG_INFO << PrinterCompact().print(start_tree);
 
     if (!validate_topology(start_tree)) {
@@ -66,6 +73,7 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     if (cached) qsc.enableCache();
     else qsc.disableCache();
 
+    begin = std::chrono::steady_clock::now();
     Tree final_tree;
     if (algorithm == "nni")
         final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
@@ -78,6 +86,9 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
+
+    end = std::chrono::steady_clock::now();
+    LOG_INFO << "Finished computing final tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     qsc.recomputeScores(final_tree, false);
     LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
@@ -98,8 +109,9 @@ int main(int argc, char* argv[]) {
     std::string pathToOutput;
     std::string pathToStartTree;
     bool restrictByLqic;
-    int numThreads;
+    size_t numThreads;
     bool cached;
+    size_t seed;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -132,11 +144,14 @@ int main(int argc, char* argv[]) {
         TCLAP::SwitchArg restrictByLqicArg("x", "restricted", "Restrict NNI and SPR moves to edges with negative LQIC score");
         cmd.add(restrictByLqicArg);
 
-        TCLAP::ValueArg<int> numThreadsArg("t", "numThreads", "Number of Threads", false, 1, "int");
+        TCLAP::ValueArg<size_t> numThreadsArg("t", "numThreads", "Number of Threads", false, 1, "int");
         cmd.add(numThreadsArg);
 
         TCLAP::SwitchArg cachedArg("c", "cached", "Cache LQIC Scores.");
         cmd.add(cachedArg);
+
+        TCLAP::ValueArg<size_t> seedArg("", "seed", "Seed", false, 1, "int");
+        cmd.add(seedArg);
 
         cmd.parse(argc, argv);
 
@@ -147,6 +162,7 @@ int main(int argc, char* argv[]) {
         restrictByLqic = restrictByLqicArg.getValue();
         numThreads = numThreadsArg.getValue();
         cached = cachedArg.getValue();
+        seed = seedArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -171,6 +187,7 @@ int main(int argc, char* argv[]) {
     //LOG_INFO << PrinterCompact().print(ref_tree);
 
     omp_set_num_threads(numThreads);
+    Random::seed(seed);
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
