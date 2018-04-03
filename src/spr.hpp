@@ -82,7 +82,8 @@ void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, Qua
     for (size_t i = 0; i < i1.size(); ++i) invalidLQIC.push_back(i1[i]);
     for (size_t i = 0; i < i2.size(); ++i) invalidLQIC.push_back(i2[i]);
 
-    for (size_t l : invalidLQIC) qsc.recomputeLqicForEdge(tree, l);
+    qsc.recomputeLqicForEdge(tree, invalidLQIC[0]);
+    for (auto it = invalidLQIC.begin()+1; it != invalidLQIC.end(); ++it) qsc.recomputeLqicForEdge(*it);
 }
 
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
