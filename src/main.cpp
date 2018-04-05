@@ -39,7 +39,6 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //LOG_INFO << "Finished computing start tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " microseconds." << std::endl;
     LOG_INFO << "Finished computing start tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     LOG_INFO << PrinterCompact().print(start_tree);

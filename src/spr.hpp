@@ -78,6 +78,10 @@ void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, Qua
         }
     }*/
 
+    for (int i = i1.size()-1, j = i2.size()-1; i >= 0 and j >= 0 and i1[i] == i2[j]; ) {
+        i2.pop_back(); --i; --j;
+    }
+
     invalidLQIC.reserve(i1.size() + i2.size() + 1);
     for (size_t i = 0; i < i1.size(); ++i) invalidLQIC.push_back(i1[i]);
     for (size_t i = 0; i < i2.size(); ++i) invalidLQIC.push_back(i2[i]);
