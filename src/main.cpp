@@ -21,7 +21,7 @@ using namespace genesis;
 using namespace genesis::tree;
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached, float simannfactor) {
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     Tree start_tree;
@@ -81,7 +81,7 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     else if (algorithm == "combo")
         final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
     else if (algorithm == "simann")
-        final_tree = simulated_annealing<CINT>(start_tree, qsc);
+        final_tree = simulated_annealing<CINT>(start_tree, qsc, simannfactor);
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
     size_t numThreads;
     bool cached;
     size_t seed;
+    float simannfactor;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -150,6 +151,9 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<size_t> seedArg("", "seed", "Seed", false, 1, "int");
         cmd.add(seedArg);
 
+        TCLAP::ValueArg<float> simannfactorArg("", "simannfactor", "Factor for simulated_annealing. Choose value in (0,1).", false, 0.1, "float");
+        cmd.add(simannfactorArg);
+
         cmd.parse(argc, argv);
 
         pathToEvaluationTrees = evalArg.getValue();
@@ -159,6 +163,7 @@ int main(int argc, char* argv[]) {
         numThreads = numThreadsArg.getValue();
         cached = cachedArg.getValue();
         seed = seedArg.getValue();
+        simannfactor = simannfactorArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -183,13 +188,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
 
     LOG_BOLD << "Done" << std::endl;
 
