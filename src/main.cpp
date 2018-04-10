@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<size_t> seedArg("", "seed", "Seed", false, 1, "int");
         cmd.add(seedArg);
 
-        TCLAP::ValueArg<float> simannfactorArg("", "simannfactor", "Factor for simulated_annealing. Choose value in (0,1).", false, 0.1, "float");
+        TCLAP::ValueArg<float> simannfactorArg("", "simannfactor", "Factor for simulated_annealing. Choose value in (0.001, 0.01).", false, 0.005, "float");
         cmd.add(simannfactorArg);
 
         cmd.parse(argc, argv);

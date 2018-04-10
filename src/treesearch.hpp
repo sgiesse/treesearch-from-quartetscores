@@ -324,11 +324,11 @@ void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
-Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float factor = 0.1) {
+Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float factor = 0.005) {
     Tree current(tree);
-    const size_t M = tree.edge_count();//std::max((int)(factor*tree.edge_count()), 2);
+    const size_t M = tree.edge_count();
     const size_t Ntrial = 100;
-    const size_t MAX_EPOCH_LENGTH = std::max((int)(factor*tree.edge_count()*factor*tree.edge_count()), 2);
+    const size_t MAX_EPOCH_LENGTH = std::max((int)(factor*tree.edge_count()*tree.edge_count()), 10);
 
     double trial_sum_downhill = 0;
     size_t trial_count_downhill = 0;
@@ -346,16 +346,15 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float fact
     current = Tree(tree);
     qsc.recomputeScores(current, false);
 
-    const double P0 = 2*factor;//0.2;
+    const double P0 = 0.2;
     const double T0 = (trial_sum_downhill/trial_count_downhill)/log(P0);
-    const double TM = 0.1*factor;//0.001;//1/T0/T0;
-    const double alpha = pow(TM/T0, 1.0/(M-1));
+    const double TM = 0.001;
     std::cout << T0 << " " << alpha << std::endl;
     double T = T0;
 
     size_t C = 0;
     const size_t MAX_NO_CHANGE = 2;
-    const double P_ACCEPT = 0.02;
+    const double P_ACCEPT = std::max(1.0/MAX_EPOCH_LENGTH, 0.02);
 
     Tree best = current;
     double max = sum_lqic_scores(qsc);
