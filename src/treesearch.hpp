@@ -349,6 +349,7 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float fact
     const double P0 = 0.2;
     const double T0 = (trial_sum_downhill/trial_count_downhill)/log(P0);
     const double TM = 0.001;
+    const double alpha = pow(TM/T0, 1.0/(M-1));
     std::cout << T0 << " " << alpha << std::endl;
     double T = T0;
 

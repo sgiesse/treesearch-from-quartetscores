@@ -12,6 +12,7 @@
 
 #include <string>
 #include <limits>
+#include <cstdio>
 
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
@@ -182,6 +183,13 @@ int main(int argc, char* argv[]) {
         std::cerr << "ERROR: " << e.error() << " for arg " << e.argId() << std::endl;
         return 1;
     }
+
+    FILE *fp = fopen(pathToOutput.c_str(), "w");
+    if (fp == NULL) {
+        LOG_ERR << "Cannot write output file: " << pathToOutput << std::endl;
+        return 0;
+    }
+    fclose(fp);
 
     omp_set_num_threads(numThreads);
     Random::seed(seed);
