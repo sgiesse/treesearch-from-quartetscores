@@ -328,7 +328,7 @@ void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
-Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float factor = 0.005) {
+Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool lowtemp, float factor = 0.005) {
     Tree current(tree);
     const size_t M = tree.edge_count();
     const size_t Ntrial = 100;
@@ -350,7 +350,7 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float fact
     current = Tree(tree);
     qsc.recomputeScores(current, false);
 
-    const double P0 = 0.2;
+    const double P0 = lowtemp ? 0.002 : 0.2;
     const double T0 = (trial_sum_downhill/trial_count_downhill)/log(P0);
     const double TM = 0.001;
     const double alpha = pow(TM/T0, 1.0/(M-1));
