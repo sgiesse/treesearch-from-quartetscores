@@ -17,29 +17,71 @@
 #include "treesearch.hpp"
 #include "tree_operations.hpp"
 #include "utils.hpp"
+#include "reduce_tree.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
 
+struct ResultsAndStats {
+    double timeClustering;
+    double timeCountingQuartets;
+    double timeStartTree;
+    double timeFirstTreesearch;
+    double timeExpandCluster;
+    double timeFinalTreesearch;
+
+    Tree finalTree;
+
+    ResultsAndStats() {
+        timeClustering = timeCountingQuartets = timeStartTree = timeFirstTreesearch = timeExpandCluster = timeFinalTreesearch = 0;
+    }
+
+    double totalTime() {
+        return timeClustering + timeCountingQuartets + timeStartTree + timeFirstTreesearch + timeExpandCluster + timeFinalTreesearch; }
+};
+
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached, float simannfactor) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached, float simannfactor, bool clustering) {
+
+    ResultsAndStats res;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+    std::vector<std::string> leaves;
+    std::vector<std::vector<std::string> > leafSets;
+    if (clustering) {
+        begin = std::chrono::steady_clock::now();
+        leafSets = leaf_sets(pathToEvaluationTrees);
+        for (auto x : leafSets) leaves.push_back(x[0]);
+        end = std::chrono::steady_clock::now();
+        res.timeClustering =
+            std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
+    } else {
+        leaves = leafNames(pathToEvaluationTrees);
+    }
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+
+    begin = std::chrono::steady_clock::now();
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
-            start_tree = stepwise_addition_tree<CINT>(pathToEvaluationTrees, m);
+            start_tree = stepwise_addition_tree_from_leaves<CINT>(pathToEvaluationTrees, leaves, m);
         else if (startTreeMethod == "random")
-            start_tree = random_tree(pathToEvaluationTrees);
+            start_tree = random_tree_from_leaves(leaves);
         else if (startTreeMethod == "exhaustive")
-            start_tree = exhaustive_search<CINT>(pathToEvaluationTrees, m);
+            start_tree = exhaustive_search_from_leaves<CINT>(pathToEvaluationTrees, leaves, m);
         else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
     } else {
         LOG_INFO << "Read start tree from file";
         start_tree = DefaultTreeNewickReader().from_file(pathToStartTree);
     }
 
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    end = std::chrono::steady_clock::now();
+    end = std::chrono::steady_clock::now();
+    res.timeStartTree =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
+
     LOG_INFO << "Finished computing start tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     LOG_INFO << PrinterCompact().print(start_tree);
@@ -48,30 +90,40 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         LOG_WARN << "Topology of start tree is not valid!";
     } else { LOG_INFO << "Topology of start tree is ok!"; }
 
-    std::vector<std::string> st_leafNames;
-    for (size_t i = 0; i < start_tree.node_count(); ++i) {
-        if (start_tree.node_at(i).is_leaf())
-            st_leafNames.push_back(start_tree.node_at(i).data<DefaultNodeData>().name);
-    }
-    std::sort(st_leafNames.begin(), st_leafNames.end());
-    std::vector<std::string> leaves = leafNames(pathToEvaluationTrees);
-    std::sort(leaves.begin(), leaves.end());
-    if (leaves.size() != st_leafNames.size()) {
-        throw std::runtime_error("size of set of leaf names is wrong");
-    }
-    for (size_t i = 0; i < leaves.size(); ++i) {
-        if (leaves[i] != st_leafNames[i]){
-            LOG_ERR << leaves[i] << " != " << st_leafNames[i] << std::endl;
-            throw std::runtime_error("leaf name incorrect");
-        }
-    }
-
+    begin = std::chrono::steady_clock::now();
+    Tree rand_tree = random_tree(pathToEvaluationTrees);
     QuartetScoreComputer<CINT> qsc =
-        QuartetScoreComputer<CINT>(start_tree, pathToEvaluationTrees, m, true, true);
+        QuartetScoreComputer<CINT>(rand_tree, pathToEvaluationTrees, m, true, true);
+    qsc.recomputeScores(start_tree, false);
     LOG_INFO << "Sum lqic start Tree: " << sum_lqic_scores(qsc) << std::endl;
+    end = std::chrono::steady_clock::now();
+    res.timeCountingQuartets =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
 
     if (cached) qsc.enableCache();
     else qsc.disableCache();
+
+    if (clustering) {
+        begin = std::chrono::steady_clock::now();
+
+        if (algorithm == "nni")
+            start_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
+        else if (algorithm == "spr")
+            start_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+        else if (algorithm == "combo")
+            start_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+        else if (algorithm == "simann")
+            start_tree = simulated_annealing<CINT>(start_tree, qsc, simannfactor);
+        else if (algorithm == "no")
+            start_tree = start_tree;
+        else  { LOG_ERR << algorithm << " is unknown algorithm"; }
+
+        end = std::chrono::steady_clock::now();
+        res.timeFirstTreesearch =
+            std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
+
+        start_tree = expanded_cluster_tree(start_tree, leafSets);
+    }
 
     begin = std::chrono::steady_clock::now();
     Tree final_tree;
@@ -88,10 +140,20 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
 
     end = std::chrono::steady_clock::now();
+    res.timeFinalTreesearch =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
     LOG_INFO << "Finished computing final tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     qsc.recomputeScores(final_tree, false);
     LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    LOG_INFO << "time Clustering: " << std::fixed << res.timeClustering << " seconds" << std::endl;
+    LOG_INFO << "time CountingQuartets: " << std::fixed << res.timeCountingQuartets << " seconds" << std::endl;
+    LOG_INFO << "time StartTree: " << std::fixed << res.timeStartTree << " seconds" << std::endl;
+    LOG_INFO << "time FirstTreesearch: " << std::fixed << res.timeFirstTreesearch << " seconds" << std::endl;
+    LOG_INFO << "time ExpandCluster: " << std::fixed << res.timeExpandCluster << " seconds" << std::endl;
+    LOG_INFO << "time FinalTreesearch: " << std::fixed << res.timeFinalTreesearch << " seconds" << std::endl;
+    LOG_INFO << "time Total: " << std::fixed << res.totalTime() << " seconds" << std::endl;
 
     DefaultTreeNewickWriter().to_file(final_tree, pathToOutput);
 }
@@ -112,6 +174,7 @@ int main(int argc, char* argv[]) {
     bool cached;
     size_t seed;
     float simannfactor;
+    bool clustering;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -155,6 +218,9 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<float> simannfactorArg("", "simannfactor", "Factor for simulated_annealing. Choose value in (0.001, 0.01).", false, 0.005, "float");
         cmd.add(simannfactorArg);
 
+        TCLAP::SwitchArg clusteringArg("", "clustering", "Cluster Taxa before Treesearch.");
+        cmd.add(clusteringArg);
+
         cmd.parse(argc, argv);
 
         pathToEvaluationTrees = evalArg.getValue();
@@ -165,6 +231,7 @@ int main(int argc, char* argv[]) {
         cached = cachedArg.getValue();
         seed = seedArg.getValue();
         simannfactor = simannfactorArg.getValue();
+        clustering = clusteringArg.getValue();
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -196,13 +263,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering);
 
     LOG_BOLD << "Done" << std::endl;
 

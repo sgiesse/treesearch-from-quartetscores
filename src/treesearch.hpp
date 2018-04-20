@@ -176,7 +176,7 @@ Tree tree_search_combo(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restric
 }
 
 
-Tree random_tree_from_leaves(std::vector<std::string> leaves) {
+Tree random_tree_from_leaves(std::vector<std::string>& leaves) {
     // Define simple Tree structure
     struct SimpleNode {
         std::vector<SimpleNode> children;
@@ -241,10 +241,7 @@ Tree random_tree(const std::string &evalTreesPath) {
 }
 
 template<typename CINT>
-Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
-    // Get set of node names
-    std::vector<std::string> leaves = leafNames(evalTreesPath);
-    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+Tree stepwise_addition_tree_from_leaves(const std::string &evalTreesPath, std::vector<std::string>& leaves, size_t m) {
 
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
@@ -293,6 +290,13 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
     }
 
     return tree;
+}
+
+template<typename CINT>
+Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
+    std::vector<std::string> leaves = leafNames(evalTreesPath);
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+    return stepwise_addition_tree_from_leaves<CINT>-(evalTreesPath, leaves, m);
 }
 
 
@@ -369,9 +373,10 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float fact
     
             Tree candidate(current);
             simulated_annealing_helper(candidate, qsc);
-    
+            //qsc.recomputeScores(candidate, false);
             double score = sum_lqic_scores(qsc);
             double R = exp((score-score_curr)/T);
+            //std::cout << R << " (" << score << ") ";
     
             if (R > 1) {
                 current = candidate;
@@ -394,6 +399,7 @@ Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, float fact
         }
         if (accepted/(double)MAX_EPOCH_LENGTH < P_ACCEPT) C++;
         else C = 0;
+        //std::cout << "  " << accepted << std::endl;
         
         T = alpha * T;  
     }
@@ -430,10 +436,7 @@ void _rec_exhaustive_search(Tree& tree, Tree& best, std::vector<std::string>& le
 }
 
 template<typename CINT>
-Tree exhaustive_search(const std::string &evalTreesPath, size_t m) {
-    // Get set of node names
-    std::vector<std::string> leaves = leafNames(evalTreesPath);
-    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+Tree exhaustive_search_from_leaves(const std::string &evalTreesPath, std::vector<std::string>& leaves, size_t m) {
 
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
@@ -462,5 +465,82 @@ Tree exhaustive_search(const std::string &evalTreesPath, size_t m) {
     return best;
 }
 
+
+template<typename CINT>
+Tree exhaustive_search(const std::string &evalTreesPath, size_t m) {
+    std::vector<std::string> leaves = leafNames(evalTreesPath);
+    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
+    return exhaustive_search_from_leaves<CINT>(evalTreesPath, leaves, m);
+}
+
+template<typename CINT>
+Tree treesearch_local(Tree& tree, QuartetScoreComputer<CINT>& qsc, std::vector<size_t>& edges, bool restrict_by_lqic = false) {
+    Tree tnew = tree;
+    qsc.recomputeScores(tnew, false);
+    double oldscore = sum_lqic_scores(qsc);
+
+    Tree global_best = tnew;
+    double global_max = oldscore;
+
+    while (true) {
+        double max = std::numeric_limits<double>::lowest();
+        Tree best;
+        qsc.recomputeScores(tnew, false);
+
+        for (size_t e : edges) {
+            if (!(tnew.edge_at(e).primary_link().node().is_inner() && tnew.edge_at(e).secondary_link().node().is_inner()))
+                continue;
+
+            nni_a_with_lqic_update(tnew, e, qsc);
+            double sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = Tree(tnew);
+            }
+            nni_a_with_lqic_update(tnew, e, qsc);
+            nni_b_with_lqic_update(tnew, e, qsc);
+            sum = sum_lqic_scores(qsc);
+            if (sum > max) {
+                max = sum;
+                best = Tree(tnew);
+            }
+            nni_b_with_lqic_update(tnew, e, qsc);
+        }
+
+        for (size_t p : edges) {
+            for (size_t r : edges) {
+                if (!validSprMove(tnew, p, r)) continue;
+                if (restrict_by_lqic and !has_negative_lqic_on_spr_path(tree, p, r, qsc.getLQICScores())) continue;
+
+                spr(tree, p, r);
+                spr_lqic_update(tree, p, r, qsc);
+                double sum = sum_lqic_scores(qsc);
+                if (sum > max) {
+                    max = sum;
+                    best = Tree(tnew);
+                }
+                spr(tree, p, r);
+                spr_lqic_update(tree, p, r, qsc);
+            }
+        }
+
+
+        if (max > oldscore) {
+            tnew = best;
+            oldscore = max;
+            LOG_INFO << "best: " << max << std::endl;
+            if (max > global_max) {
+                global_max = max;
+                global_best = tnew;
+            }
+        } else {
+            break;
+        }
+    }
+
+    qsc.recomputeScores(global_best, false);
+
+    return global_best;
+}
 
 #endif

@@ -38,6 +38,20 @@ std::string print_help(TreeNode const& node,TreeEdge const& edge) {
     return out;
 }
 
+std::string print_data(TreeNode const& node,TreeEdge const& edge) {
+    std::string out = node.data<DefaultNodeData>().name;
+    out += " --- LQIC: ";
+    out += std::to_string(edge.data<DefaultEdgeData>().branch_length);
+    return out;
+}
+
+void print_tree_with_lqic(Tree& tree, const std::vector<double>& lqic) {
+    for (size_t i = 0; i < tree.edge_count(); ++i) {
+        tree.edge_at(i).data<DefaultEdgeData>().branch_length = lqic[i];
+    }
+    LOG_INFO << PrinterCompact().print(tree, print_data);
+}
+
 
 namespace {
     std::mt19937 mt;

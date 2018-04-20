@@ -84,21 +84,24 @@ df_col_algo = []
 df_col_rf = []
 df_col_rfnorm = []
 
-"""
+
 progfile = sys.argv[1]+".progress.csv"
 
 try:
-    dfp = pd.read_csv(progfile)
-    df_col_runtime = dfp["runtime"].tolist()
-    df_col_lqic = dfp["LQIC"].tolist()
-    df_col_dataset = dfp["Dataset"].tolist()
-    df_col_starttree = dfp["StartTree"].tolist()
-    df_col_algo = dfp["Algorithm"].tolist()
-    df_col_rf = dfp["RF"].tolist()
-    df_col_rfnorm = dfp["RF_normalized"].tolist()
+    if os.path.getmtime(config["exe"]) < os.path.getmtime(progfile):
+        dfp = pd.read_csv(progfile)
+        df_col_runtime_start = dfp["runtime_start"].tolist()
+        df_col_runtime_count = dfp["runtime_count"].tolist()
+        df_col_runtime_search = dfp["runtime_search"].tolist()
+        df_col_lqic = dfp["LQIC"].tolist()
+        df_col_dataset = dfp["Dataset"].tolist()
+        df_col_starttree = dfp["StartTree"].tolist()
+        df_col_algo = dfp["Algorithm"].tolist()
+        df_col_rf = dfp["RF"].tolist()
+        df_col_rfnorm = dfp["RF_normalized"].tolist()
 except FileNotFoundError:
     pass
-"""
+
 i = 0
 for d in config["data"]:
     for args_st in config["starttrees"]:
@@ -122,7 +125,7 @@ for d in config["data"]:
                         df_col_rf.append(rf_plain)
                         df_col_rfnorm.append(rf_normalized)
                         df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime_start':df_col_runtime_start, 'runtime_count':df_col_runtime_count, 'runtime_search':df_col_runtime_search, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
-                        #df.to_csv(progfile)
+                        df.to_csv(progfile)
                     else:
                         print("skip, because already computed")
                     i = i+1
