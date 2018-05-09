@@ -6,6 +6,7 @@ import timeit
 import pandas as pd
 import json
 from compare_rf import compare_rf
+from eval_utils import parse_lqic
 
 # Provide a json-config file as first argument. Sample:
 '''
@@ -26,21 +27,8 @@ from compare_rf import compare_rf
 with open(sys.argv[1]) as json_config_file:
     config = json.load(json_config_file)
 
-
-def parse_lqic(out):
-    outString = out.decode("UTF-8")
-    str_pos = outString.find("INFO Sum lqic final Tree:",0)
-    if str_pos != -1:
-        start = str_pos + 25
-        end = outString.find("\n",str_pos)
-        lqic = float(outString[start:end])
-        return lqic
-    else:
-        print(out.decode("UTF-8"))
-        raise RuntimeError("no LQIC found")
-
 def make_starttree(d, file_st, args_st):
-    process = subprocess.Popen([config["exe"],'-e', d[0], '-r', d[1],  '-a', 'no', '-o', file_st]+args_st,
+    process = subprocess.Popen([config["exe"],'-e', d[0], '-a', 'no', '-o', file_st]+args_st,
                                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
     if (process.returncode != 0): 
@@ -51,7 +39,7 @@ def make_starttree(d, file_st, args_st):
     print("sum lqic of startTree: " + str(lqic))
 
 def make_treesearch(d, file_st, algo):
-    a = [config["exe"]] + config["args"] + ['-e', d[0], '-r', d[1], '--starttree', file_st] + algo
+    a = [config["exe"]] + config["args"] + ['-e', d[0], '--starttree', file_st] + algo
     print("----------------------------------------")
     print(" ".join(a))
     start = timeit.default_timer()
@@ -62,7 +50,6 @@ def make_treesearch(d, file_st, algo):
     lqic = parse_lqic(out)
     (rf_plain, rf_normalized) = compare_rf('../../out/out.tre', d[1])
     return (runtime, lqic, rf_plain, rf_normalized)
-
 
 
 df_col_runtime = []

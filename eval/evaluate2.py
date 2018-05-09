@@ -6,6 +6,7 @@ import timeit
 import pandas as pd
 import json
 from compare_rf import compare_rf
+from eval_utils import parse_lqic, parse_times
 
 # Provide a json-config file as first argument. Sample:
 '''
@@ -25,43 +26,6 @@ from compare_rf import compare_rf
 '''
 with open(sys.argv[1]) as json_config_file:
     config = json.load(json_config_file)
-
-
-def parse_lqic(out):
-    outString = out.decode("UTF-8")
-    str_pos = outString.find("INFO Sum lqic final Tree:",0)
-    if str_pos != -1:
-        start = str_pos + 25
-        end = outString.find("\n",str_pos)
-        lqic = float(outString[start:end])
-        return lqic
-    else:
-        print(out.decode("UTF-8"))
-        raise RuntimeError("no LQIC found")
-
-def parse_times(out):
-    STR_START = "Finished computing start tree. It took: "
-    STR_COUNT = "Finished counting quartets.\nIt took: "
-    STR_SEARCH = "Finished computing final tree. It took: "
-    outString = out.decode("UTF-8")
-    starttreetime = countquartetstime = treesearchtime = 0
-    str_pos = outString.find(STR_START, 0)
-    if str_pos != -1:
-        start = str_pos + len(STR_START)
-        end = outString.find(" seconds",str_pos)
-        starttreetime = float(outString[start:end])
-    str_pos = outString.find(STR_COUNT, str_pos)
-    if str_pos != -1:
-        start = str_pos + len(STR_COUNT)
-        end = outString.find(" seconds",str_pos)
-        countquartetstime = float(outString[start:end])
-    str_pos = outString.find(STR_SEARCH, str_pos)
-    if str_pos != -1:
-        start = str_pos + len(STR_SEARCH)
-        end = outString.find(" seconds",str_pos)
-        treesearchtime = float(outString[start:end])
-
-    return (starttreetime, countquartetstime, treesearchtime)
 
 def make_treesearch(d, starttreemethod, algo, seed):
     a = [config["exe"]] + config["args"] + ['-e', d[0], "--seed", str(seed)] + algo + starttreemethod
@@ -142,5 +106,3 @@ df_stats = df.groupby(['Dataset', 'StartTree', 'Algorithm']).agg(['mean', 'var']
 
 print(df_stats)
 df_stats.to_csv('df.csv')
-
-#os.remove(progfile)

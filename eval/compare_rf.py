@@ -27,8 +27,8 @@ def compare_rf(tree_1_path, tree_2_path):
 
     # merge the trees into one file
     outfile = open('trees', 'w')
-    outfile.write(tree_1_unrooted.as_string(schema='newick'))
-    outfile.write(tree_2_unrooted.as_string(schema='newick'))
+    outfile.write(tree_1_unrooted.as_string(schema='newick', suppress_internal_node_labels=True))
+    outfile.write(tree_2_unrooted.as_string(schema='newick', suppress_internal_node_labels=True))
     outfile.close()
 
     # compute RF distance using RAxML
