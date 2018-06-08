@@ -1,7 +1,8 @@
 #ifndef REDUCE_TREE_HPP
 #define REDUCE_TREE_HPP
 
-#include "treesearch.hpp"
+//#include "treesearch.hpp"
+#include "starttree.hpp"
 
 void calculateAveragePairwiseDistance(std::vector<std::vector<double> >& D, Tree refTree, std::string pathToEvaluationTrees) {
 	std::vector<Tree> evalTrees;
@@ -35,12 +36,12 @@ void calculateAveragePairwiseDistance(std::vector<std::vector<double> >& D, Tree
 
 	// count how often pairs appear together
 	for (Tree tree : evalTrees) {
-		for (size_t i = 0; i < refTree.node_count(); ++i) {
-			if (! refTree.node_at(i).is_leaf()) continue;
-			for (size_t j = 0; j < refTree.node_count(); ++j) {
-				if (! refTree.node_at(j).is_leaf()) continue;
-				size_t u = mapLeaves[refTree.node_at(i).data<DefaultNodeData>().name];
-				size_t v = mapLeaves[refTree.node_at(j).data<DefaultNodeData>().name];
+		for (size_t i = 0; i < tree.node_count(); ++i) {
+			if (! tree.node_at(i).is_leaf()) continue;
+			for (size_t j = 0; j < tree.node_count(); ++j) {
+				if (! tree.node_at(j).is_leaf()) continue;
+				size_t u = mapLeaves[tree.node_at(i).data<DefaultNodeData>().name];
+				size_t v = mapLeaves[tree.node_at(j).data<DefaultNodeData>().name];
 				occurInEval[u][v]++;
 				occurInEval[v][u]++;
 			}
@@ -60,6 +61,7 @@ void calculateAveragePairwiseDistance(std::vector<std::vector<double> >& D, Tree
 				size_t u = mapLeaves[tree.node_at(i).data<DefaultNodeData>().name];
 				size_t v = mapLeaves[tree.node_at(j).data<DefaultNodeData>().name];
 				double d = tinf.distanceInEdges(i, j);
+        if (d < 2 and i != j) throw std::runtime_error("Distance too small.");
 				D[u][v] += d;
 				D[v][u] += d;
 			}
@@ -67,9 +69,11 @@ void calculateAveragePairwiseDistance(std::vector<std::vector<double> >& D, Tree
 	}
 	for (size_t i = 0; i < D.size(); ++i) {
 		for (size_t j = 0; j < D.size(); ++j) {
-			if (occurInEval[i][j] > 0)
-				D[i][j] /= occurInEval[i][j];
-			else D[i][j] = std::numeric_limits<double>::infinity();
+        if (occurInEval[i][j] > 0) 
+            D[i][j] /= occurInEval[i][j];
+
+        else D[i][j] = std::numeric_limits<double>::infinity();
+        if (D[i][j] < 2 and i != j) throw std::runtime_error("Avg. Distance too small.");
 		}
 	}
 }

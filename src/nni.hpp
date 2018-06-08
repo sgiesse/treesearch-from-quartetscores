@@ -6,6 +6,7 @@
 #include <memory>
 #include "genesis/tree/function/manipulation.hpp"
 #include "utils.hpp"
+#include "random.hpp"
 #include "../externals/generator/generator.hpp"
 
 // --------- Forward Declarations
@@ -15,6 +16,10 @@ Tree nni_b(Tree& tree, int i);
 void nni_b_inplace(Tree& tree, int i);
 void nni_a_inplace(Tree& tree, int i);
 Tree make_random_nni_moves(Tree& tree, int n);
+template<typename CINT> void nni_a_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc);
+template<typename CINT> void nni_b_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc);
+template<typename CINT> void nni_a_with_qpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc);
+template<typename CINT> void nni_b_with_qpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc);
 // -----------------------------
 
 
@@ -48,7 +53,7 @@ GENERATOR(nni_generator_qsc) {
         for (i = 0; i < tree.edge_count(); i++){
             if (!(tree.edge_at(i).primary_link().node().is_inner() && tree.edge_at(i).secondary_link().node().is_inner()))
                 continue; //edge is no internode
-            
+
             if (restrict_by_lqic and qsc->getLQICScores()[i] > 0)
                 continue;
 
@@ -150,6 +155,50 @@ void nni_b_with_lqic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qs
         swap_LQIC<CINT>(tree.edge_at(e).primary_link().next().edge().index(),
         tree.edge_at(e).secondary_link().next().edge().index(), qsc);
 
+}
+
+template<typename CINT>
+void nni_a_with_qpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_a_inplace(tree, e);
+    qsc.recomputeQpicForEdge(tree, e);
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).primary_link().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).primary_link().next().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).secondary_link().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).secondary_link().next().next().edge().index());
+}
+
+template<typename CINT>
+void nni_b_with_qpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_b_inplace(tree, e);
+    qsc.recomputeQpicForEdge(tree, e);
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).primary_link().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).primary_link().next().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).secondary_link().next().edge().index());
+    qsc.recomputeQpicForEdge(tree, tree.edge_at(e).secondary_link().next().next().edge().index());
+}
+
+template<typename CINT>
+void nni_a_with_eqpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_a_inplace(tree, e);
+
+    qsc.recomputeEqpicForEdge(tree, 0);
+    for (size_t e = 1; e < tree.edge_count(); ++e) {
+        qsc.recomputeEqpicForEdge(e);
+    }
+
+    TODO( Too many unnecessary edges get recomputed)
+}
+
+template<typename CINT>
+void nni_b_with_eqpic_update(Tree& tree, size_t e, QuartetScoreComputer<CINT>& qsc) {
+    nni_b_inplace(tree, e);
+    
+    qsc.recomputeEqpicForEdge(tree, 0);
+    for (size_t e = 1; e < tree.edge_count(); ++e) {
+        qsc.recomputeEqpicForEdge(e);
+    }
+
+    TODO( Too many unnecessary edges get recomputed)
 }
 
 void nni_a_inplace(Tree& tree, int i) {

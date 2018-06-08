@@ -14,10 +14,15 @@
 #include <limits>
 #include <cstdio>
 
-#include "treesearch.hpp"
-#include "tree_operations.hpp"
+//#include "treesearch.hpp"
+//#include "tree_operations.hpp"
 #include "utils.hpp"
+#include "random.hpp"
+#include "objective_function.hpp"
 #include "reduce_tree.hpp"
+#include "greedy.hpp"
+#include "simulated_annealing.hpp"
+#include "starttree.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
@@ -41,7 +46,7 @@ struct ResultsAndStats {
 };
 
 template<typename CINT>
-void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached, float simannfactor, bool clustering, std::string treesearchAlgorithmClustered) {
+void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMethod, std::string algorithm, std::string pathToOutput, std::string pathToStartTree, bool restrictByLqic, bool cached, float simannfactor, bool clustering, std::string treesearchAlgorithmClustered, ObjectiveFunction objectiveFunction) {
 
     ResultsAndStats res;
 
@@ -66,11 +71,11 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
-            start_tree = stepwise_addition_tree_from_leaves<CINT>(pathToEvaluationTrees, leaves, m);
+            start_tree = stepwise_addition_tree_from_leaves<CINT>(pathToEvaluationTrees, leaves, m, objectiveFunction);
         else if (startTreeMethod == "random")
             start_tree = random_tree_from_leaves(leaves);
         else if (startTreeMethod == "exhaustive")
-            start_tree = exhaustive_search_from_leaves<CINT>(pathToEvaluationTrees, leaves, m);
+            start_tree = exhaustive_search_from_leaves<CINT>(pathToEvaluationTrees, leaves, m, objectiveFunction);
         else { LOG_ERR << startTreeMethod << " is unknown start tree method"; }
     } else {
         LOG_INFO << "Read start tree from file";
@@ -95,7 +100,19 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(rand_tree, pathToEvaluationTrees, m, true, true);
     qsc.recomputeScores(start_tree, false);
-    LOG_INFO << "Sum lqic start Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    switch (objectiveFunction) {
+    case LQIC:
+        LOG_INFO << "Sum LQIC start Tree: " << sum_lqic_scores(qsc) << std::endl;
+        break;
+    case QPIC:
+        LOG_INFO << "Sum QPIC start Tree: " << sum_qpic_scores(qsc) << std::endl;
+        break;
+    case EQPIC:
+        LOG_INFO << "Sum EQPIC start Tree: " << sum_eqpic_scores(qsc) << std::endl;
+        break;
+    }
+
     end = std::chrono::steady_clock::now();
     res.timeCountingQuartets =
         std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
@@ -103,17 +120,22 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     if (cached) qsc.enableCache();
     else qsc.disableCache();
 
+    TODO(SPR algorithm in 1st and 2nd algorithm)
     if (clustering) {
         begin = std::chrono::steady_clock::now();
 
         if (treesearchAlgorithmClustered == "nni")
-            start_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
+            //start_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
+            start_tree = treesearch_nni<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
         else if (treesearchAlgorithmClustered == "spr")
-            start_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+            //start_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+            throw std::runtime_error("Not implemented");
         else if (treesearchAlgorithmClustered == "combo")
-            start_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+            //start_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+            start_tree = treesearch_combo<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
         else if (treesearchAlgorithmClustered == "simann")
-            start_tree = simulated_annealing<CINT>(start_tree, qsc, false, simannfactor);
+            //start_tree = simulated_annealing<CINT>(start_tree, qsc, false, simannfactor);
+            start_tree = simulated_annealing<CINT>(start_tree, qsc, false, objectiveFunction, simannfactor);
         else if (treesearchAlgorithmClustered == "no")
             start_tree = start_tree;
         else  { LOG_ERR << treesearchAlgorithmClustered << " is unknown algorithm"; }
@@ -134,13 +156,17 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     begin = std::chrono::steady_clock::now();
     Tree final_tree;
     if (algorithm == "nni")
-        final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
+        //final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
+        final_tree = treesearch_nni<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
     else if (algorithm == "spr")
-        final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+        //final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
+        throw std::runtime_error("Not implemented");
     else if (algorithm == "combo")
-        final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+        //final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
+        final_tree = treesearch_combo<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
     else if (algorithm == "simann")
-        final_tree = simulated_annealing<CINT>(start_tree, qsc, clustering, simannfactor);
+        //final_tree = simulated_annealing<CINT>(start_tree, qsc, clustering, simannfactor);
+        final_tree = simulated_annealing<CINT>(start_tree, qsc, clustering, objectiveFunction, simannfactor);
     else if (algorithm == "no")
         final_tree = start_tree;
     else  { LOG_ERR << algorithm << " is unknown algorithm"; }
@@ -151,7 +177,19 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     LOG_INFO << "Finished computing final tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     qsc.recomputeScores(final_tree, false);
-    LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    //LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
+
+    switch (objectiveFunction) {
+    case LQIC:
+        LOG_INFO << "Sum LQIC final Tree: " << sum_lqic_scores(qsc) << std::endl;
+        break;
+    case QPIC:
+        LOG_INFO << "Sum QPIC final Tree: " << sum_qpic_scores(qsc) << std::endl;
+        break;
+    case EQPIC:
+        LOG_INFO << "Sum EQPIC final Tree: " << sum_eqpic_scores(qsc) << std::endl;
+        break;
+    }
 
     LOG_INFO << "time Clustering: " << std::fixed << res.timeClustering << " seconds" << std::endl;
     LOG_INFO << "time CountingQuartets: " << std::fixed << res.timeCountingQuartets << " seconds" << std::endl;
@@ -182,6 +220,7 @@ int main(int argc, char* argv[]) {
     float simannfactor;
     bool clustering;
     std::string treesearchAlgorithmClustered;
+    ObjectiveFunction objectiveFunction;
 
     try {
         TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
@@ -233,6 +272,11 @@ int main(int argc, char* argv[]) {
         TCLAP::ValueArg<std::string> treesearchAlgorithmClusteredArg("", "treesearchAlgorithmClustered", "", false, "same", &constraintTreesearchAlgorithmClustered);
         cmd.add(treesearchAlgorithmClusteredArg);
 
+        std::vector<std::string> allowedObjectiveFunction = { "lqic", "qpic", "eqpic" };
+        TCLAP::ValuesConstraint<std::string> constraintObjectiveFunction(allowedObjectiveFunction);
+        TCLAP::ValueArg<std::string> objectiveFunctionArg("", "objectiveFunction", "The objective function to maximize.", false, "lqic", &constraintObjectiveFunction);
+        cmd.add(objectiveFunctionArg);
+
         cmd.parse(argc, argv);
 
         pathToEvaluationTrees = evalArg.getValue();
@@ -260,6 +304,11 @@ int main(int argc, char* argv[]) {
 
         startTreeMethod = startTreeMethodArg.getValue();
         algorithm = algorithmArg.getValue();
+
+        if (objectiveFunctionArg.getValue() == "lqic") objectiveFunction = LQIC;
+        if (objectiveFunctionArg.getValue() == "qpic") objectiveFunction = QPIC;
+        if (objectiveFunctionArg.getValue() == "eqpic") objectiveFunction = EQPIC;
+
     } catch (TCLAP::ArgException &e) {
         std::cerr << "ERROR: " << e.error() << " for arg " << e.argId() << std::endl;
         return 1;
@@ -277,13 +326,13 @@ int main(int argc, char* argv[]) {
 
     size_t m = countEvalTrees(pathToEvaluationTrees);
     if (m < (size_t(1) << 8))
-        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered);
+        doStuff<uint8_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered, objectiveFunction);
     else if (m < (size_t(1) << 16))
-        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered);
+        doStuff<uint16_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered, objectiveFunction);
     else if (m < (size_t(1) << 32))
-        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered);
+        doStuff<uint32_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered, objectiveFunction);
     else
-        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered);
+        doStuff<uint64_t>(pathToEvaluationTrees, m, startTreeMethod, algorithm, pathToOutput, pathToStartTree, restrictByLqic, cached, simannfactor, clustering, treesearchAlgorithmClustered, objectiveFunction);
 
     LOG_BOLD << "Done" << std::endl;
 

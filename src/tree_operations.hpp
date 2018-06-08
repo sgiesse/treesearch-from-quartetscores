@@ -10,6 +10,9 @@
 // --------- Forward Declarations
 std::vector<std::string> leafNames(const std::string &evalTreesPath);
 bool verify_leaf_ids_match(Tree tree1, Tree tree2, bool verbose);
+void reconnect_node_primary(Tree& tree, size_t edge, size_t new_primary_link);
+void reconnect_node_secondary(Tree& tree, size_t edge, size_t new_secondary_link);
+void swap_edges(Tree& tree, size_t edge1, size_t edge2);
 
 // -----------------------------
 

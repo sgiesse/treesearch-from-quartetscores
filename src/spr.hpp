@@ -90,6 +90,29 @@ void spr_lqic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, Qua
     for (auto it = invalidLQIC.begin()+1; it != invalidLQIC.end(); ++it) qsc.recomputeLqicForEdge(*it);
 }
 
+template<typename CINT>
+void spr_qpic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc) {
+    (void)pruneEdgeIdx;
+    (void)regraftEdgeIdx;
+    qsc.recomputeQpicForEdge(tree, 0);
+    for (size_t e = 1; e < tree.edge_count(); ++e) {
+        qsc.recomputeQpicForEdge(e);
+    }
+
+    TODO( Too many unnecessary edges get recomputed)
+        }
+
+template<typename CINT>
+void spr_eqpic_update(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx, QuartetScoreComputer<CINT>& qsc) {
+    (void)pruneEdgeIdx;
+    (void)regraftEdgeIdx;
+    TODO( Too many unnecessary edges get recomputed)
+    qsc.recomputeEqpicForEdge(tree, 0);
+    for (size_t e = 1; e < tree.edge_count(); ++e) {
+        qsc.recomputeEqpicForEdge(e);
+    }
+}
+
 bool validSprMove(Tree& tree, size_t pruneEdgeIdx, size_t regraftEdgeIdx) {
     if (pruneEdgeIdx >= tree.edge_count() or regraftEdgeIdx >= tree.edge_count()) return false;
     if (pruneEdgeIdx == regraftEdgeIdx) return false;

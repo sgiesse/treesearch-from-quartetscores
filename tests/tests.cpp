@@ -116,6 +116,141 @@ TEST_CASE("LQIC after NNI") {
     }
 }
 
+TEST_CASE("QPIC after NNI") {
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+    size_t e = 2;
+    while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+
+    SECTION("nni_a"){
+        nni_a_with_qpic_update<uint64_t>(tree, e, qsc);
+        std::vector<double> qpic1 = qsc.getQPICScores();
+        qsc.recomputeScores(tree, false);
+        std::vector<double> qpic2 = qsc.getQPICScores();
+        //REQUIRE(qpic1 == qpic2);
+        bool eq = true;
+        for (size_t j = 0; j < qpic1.size(); ++j) {
+            if (Approx(qpic1[j]) != qpic2[j]) { eq = false; continue; }
+        }
+        REQUIRE(eq);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_a_with_qpic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> qpic1 = qsc.getQPICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> qpic2 = qsc.getQPICScores();
+            //REQUIRE(qpic1 == qpic2);
+            bool eq = true;
+            for (size_t j = 0; j < qpic1.size(); ++j) {
+                if (Approx(qpic1[j]) != qpic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+
+    SECTION("nni_b"){
+        std::cout << "edge: " << e << std::endl;
+        nni_b_with_qpic_update<uint64_t>(tree, e, qsc);
+        std::vector<double> qpic1 = qsc.getQPICScores();
+        qsc.recomputeScores(tree, false);
+        std::vector<double> qpic2 = qsc.getQPICScores();
+        //REQUIRE(qpic1 == qpic2);
+        bool eq = true;
+        for (size_t j = 0; j < qpic1.size(); ++j) {
+            if (Approx(qpic1[j]) != qpic2[j]) { eq = false; continue; }
+        }
+        REQUIRE(eq);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_b_with_qpic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> qpic1 = qsc.getQPICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> qpic2 = qsc.getQPICScores();
+            //REQUIRE(qpic1 == qpic2);
+            bool eq = true;
+            for (size_t j = 0; j < qpic1.size(); ++j) {
+                if (Approx(qpic1[j]) != qpic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+}
+
+TEST_CASE("EQPIC after NNI") {
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+    size_t e = 2;
+    while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+
+    SECTION("nni_a"){
+        nni_a_with_eqpic_update<uint64_t>(tree, e, qsc);
+        std::vector<double> eqpic1 = qsc.getEQPICScores();
+        qsc.recomputeScores(tree, false);
+        std::vector<double> eqpic2 = qsc.getEQPICScores();
+        //REQUIRE(eqpic1 == eqpic2);
+        bool eq = true;
+        for (size_t j = 0; j < eqpic1.size(); ++j) {
+            if (Approx(eqpic1[j]) != eqpic2[j]) { eq = false; continue; }
+        }
+        REQUIRE(eq);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_a_with_eqpic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> eqpic1 = qsc.getEQPICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> eqpic2 = qsc.getEQPICScores();
+            //REQUIRE(eqpic1 == eqpic2);
+            bool eq = true;
+            for (size_t j = 0; j < eqpic1.size(); ++j) {
+                if (Approx(eqpic1[j]) != eqpic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+
+    SECTION("nni_b"){
+        std::cout << "edge: " << e << std::endl;
+        nni_b_with_eqpic_update<uint64_t>(tree, e, qsc);
+        std::vector<double> eqpic1 = qsc.getEQPICScores();
+        qsc.recomputeScores(tree, false);
+        std::vector<double> eqpic2 = qsc.getEQPICScores();
+        //REQUIRE(eqpic1 == eqpic2);
+        bool eq = true;
+        for (size_t j = 0; j < eqpic1.size(); ++j) {
+            if (Approx(eqpic1[j]) != eqpic2[j]) { eq = false; continue; }
+        }
+        REQUIRE(eq);
+
+        for (size_t i = 0; i < 10; ++i) {
+            e = (e+i) % tree.edge_count();
+            while (tree.edge_at(e).secondary_link().is_leaf()) ++e;
+            std::cout << "edge: " << e << std::endl;
+            nni_b_with_eqpic_update<uint64_t>(tree, e, qsc);
+            std::vector<double> eqpic1 = qsc.getEQPICScores();
+            qsc.recomputeScores(tree, false);
+            std::vector<double> eqpic2 = qsc.getEQPICScores();
+            //REQUIRE(eqpic1 == eqpic2);
+            bool eq = true;
+            for (size_t j = 0; j < eqpic1.size(); ++j) {
+                if (Approx(eqpic1[j]) != eqpic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+}
+
+
 TEST_CASE("NNI Generator") {
     std::string newickIn = "(((A1,A2),B),C,D);";
     Tree tree = DefaultTreeNewickReader().from_string(newickIn);
@@ -181,6 +316,34 @@ TEST_CASE("SPR LQIC update") {
             bool eq = true;
             for (size_t j = 0; j < lqic1.size(); ++j) {
                 if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+            }
+            REQUIRE(eq);
+        }
+    }
+}
+
+
+TEST_CASE("SPR EQPIC update") {
+    omp_set_num_threads(1);
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+
+    for (size_t i = 0; i < tree.edge_count(); ++i) {
+        std::cout << i << "/" << tree.edge_count() << std::endl;
+        for (size_t j = 0; j < tree.edge_count(); ++j) {
+            if (!validSprMove(tree, i, j)) continue;
+            qsc.recomputeScores(tree, false);
+            Tree t(tree);
+            spr(t, i, j);
+            spr_eqpic_update(t, i, j, qsc);
+            std::vector<double> eqpic1 = qsc.getEQPICScores();
+            qsc.recomputeScores(t, false);
+            std::vector<double> eqpic2 = qsc.getEQPICScores();
+            //REQUIRE(eqpic1 == eqpic2);
+            bool eq = true;
+            for (size_t j = 0; j < eqpic1.size(); ++j) {
+                if (Approx(eqpic1[j]) != eqpic2[j]) { eq = false; continue; }
             }
             REQUIRE(eq);
         }

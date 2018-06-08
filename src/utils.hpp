@@ -1,17 +1,17 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
+#define DO_PRAGMA(x) _Pragma (#x)
+#define TODO(x) DO_PRAGMA(message ("TODO - " #x))
+
 #include "QuartetScoreComputer.hpp"
+#include "nni.hpp"
+#include "spr.hpp"
 
-template<typename CINT>
-double sum_lqic_scores(QuartetScoreComputer<CINT>& qsc) {
-    std::vector<double> lqic = qsc.getLQICScores();
-    double sum = 0;
-    for (size_t j = 0; j < lqic.size(); ++j)
-        if (lqic[j] <= 1 && lqic[j] >= -1) sum += lqic[j];
-    return sum;
-}
-
+size_t countEvalTrees(const std::string &evalTreesPath);
+std::string print_help(TreeNode const& node,TreeEdge const& edge);
+std::string print_data(TreeNode const& node,TreeEdge const& edge);
+void print_tree_with_lqic(Tree& tree, const std::vector<double>& lqic);
 
 size_t countEvalTrees(const std::string &evalTreesPath) {
     size_t count = 0;
@@ -52,45 +52,5 @@ void print_tree_with_lqic(Tree& tree, const std::vector<double>& lqic) {
     LOG_INFO << PrinterCompact().print(tree, print_data);
 }
 
-
-namespace {
-    std::mt19937 mt;
-    bool initialized = false;
-}
-
-namespace Random {
-
-    void init() {
-        std::random_device rd;
-        mt = std::mt19937(rd());
-        initialized = true;
-    }
-
-    void seed(int s) {
-        mt.seed(s);
-        initialized = true;
-    }
-
-    int get_rand_int(int a, int b) {
-        if (!initialized) {
-            init();
-        }
-        std::uniform_int_distribution<int> distr(a,b);
-        return distr(mt);
-    }
-
-    float get_rand_float(float a, float b) {
-        if (!initialized) {
-            init();
-        }
-        std::uniform_real_distribution<> distr(a,b);
-        return distr(mt);
-    }
-
-    std::mt19937 getMT() {
-        if (!initialized) init();
-        return mt;
-    }
-}
 
 #endif

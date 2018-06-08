@@ -6,6 +6,7 @@
 #include "genesis/tree/function/manipulation.hpp"
 
 #include "utils.hpp"
+#include "random.hpp"
 #include "tree_operations.hpp"
 #include "nni.hpp"
 #include "spr.hpp"
@@ -60,6 +61,7 @@ Tree old_tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_
 
 template<typename CINT>
 Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_lqic = false) {
+    LOG_INFO << "NNI" << std::endl;
     Tree tnew = tree;
     qsc.recomputeScores(tnew, false);
     double oldscore = sum_lqic_scores(qsc);
@@ -95,6 +97,7 @@ Tree tree_search(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool restrict_by_l
 
     qsc.recomputeScores(global_best, false);
 
+    LOG_INFO << "NNI DONE" << std::endl;
     return global_best;
 }
 
@@ -138,7 +141,6 @@ Tree tree_search_with_spr(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool rest
     }
 
     qsc.recomputeScores(global_best, false);
-
     return global_best;
 }
 
@@ -301,7 +303,7 @@ Tree stepwise_addition_tree(const std::string &evalTreesPath, size_t m) {
 
 
 template<typename CINT>
-void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
+void old_simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
     //const int m = Random::get_rand_int(0, 1);
     const float m = Random::get_rand_float(0,1);
     const int ab = Random::get_rand_int(0, 1);
@@ -328,7 +330,7 @@ void simulated_annealing_helper(Tree& tree, QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
-Tree simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool lowtemp, float factor = 0.005) {
+Tree old_simulated_annealing(Tree& tree, QuartetScoreComputer<CINT>& qsc, bool lowtemp, float factor = 0.005) {
     Tree current(tree);
     const size_t M = tree.edge_count();
     const size_t Ntrial = 100;
