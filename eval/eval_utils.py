@@ -6,23 +6,26 @@ import pandas as pd
 import json
 from compare_rf import compare_rf
 
-def parse_lqic(out):
+def parse_lqic(out, raiseError):
     outString = out.decode("UTF-8")
-    str_pos = outString.find("INFO Sum lqic final Tree:",0)
+    str_pos = outString.find("INFO Sum LQIC final Tree:",0)
     if str_pos != -1:
         start = str_pos + 25
         end = outString.find("\n",str_pos)
         lqic = float(outString[start:end])
         return lqic
     else:
-        print(out.decode("UTF-8"))
-        raise RuntimeError("no LQIC found")
+        if raiseError:
+            print(out.decode("UTF-8"))
+            raise RuntimeError("no LQIC found")
+        else:
+            return float('nan')
 
-def lqic(treePath, evalTreesPath):
+def lqic(treePath, evalTreesPath, raiseError):
     a = ["../build/treesearch", "-a", "no", "-e", evalTreesPath, "--starttree", treePath]
     process = subprocess.Popen(a, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
-    lqic = parse_lqic(out)
+    lqic = parse_lqic(out, raiseError)
     return lqic
 
 def parse_times(out):

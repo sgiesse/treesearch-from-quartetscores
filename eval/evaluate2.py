@@ -33,7 +33,7 @@ def make_treesearch(d, starttreemethod, algo, seed):
     print(" ".join(a))
     process = subprocess.Popen(a, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
-    lqic = parse_lqic(out)
+    lqic = parse_lqic(out, False)
     (starttreetime, countquartetstime, treesearchtime) = parse_times(out)
     (rf_plain, rf_normalized) = compare_rf('../../out/out.tre', d[1])
     return (starttreetime, countquartetstime, treesearchtime, lqic, rf_plain, rf_normalized)
