@@ -6,7 +6,7 @@ import timeit
 import pandas as pd
 import json
 from compare_rf import compare_rf
-from eval_utils import parse_lqic, parse_times
+from eval_utils import parse_score, parse_times
 
 # Provide a json-config file as first argument. Sample:
 '''
@@ -33,15 +33,19 @@ def make_treesearch(d, starttreemethod, algo, seed):
     print(" ".join(a))
     process = subprocess.Popen(a, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     out, err = process.communicate()
-    lqic = parse_lqic(out, False)
+    lqic = parse_score(out, "LQIC", False)
+    qpic = parse_score(out, "QPIC", False)
+    eqpic= parse_score(out, "EQPIC", False)
     (starttreetime, countquartetstime, treesearchtime) = parse_times(out)
     (rf_plain, rf_normalized) = compare_rf('../../out/out.tre', d[1])
-    return (starttreetime, countquartetstime, treesearchtime, lqic, rf_plain, rf_normalized)
+    return (starttreetime, countquartetstime, treesearchtime, lqic, qpic, eqpic, rf_plain, rf_normalized)
 
 df_col_runtime_start = []
 df_col_runtime_count = []
 df_col_runtime_search = []
 df_col_lqic = []
+df_col_qpic = []
+df_col_eqpic = []
 df_col_dataset = []
 df_col_starttree = []
 df_col_algo = []
@@ -58,6 +62,8 @@ try:
         df_col_runtime_count = dfp["runtime_count"].tolist()
         df_col_runtime_search = dfp["runtime_search"].tolist()
         df_col_lqic = dfp["LQIC"].tolist()
+        df_col_qpic = dfp["QPIC"].tolist()
+        df_col_eqpic = dfp["EQPIC"].tolist()
         df_col_dataset = dfp["Dataset"].tolist()
         df_col_starttree = dfp["StartTree"].tolist()
         df_col_algo = dfp["Algorithm"].tolist()
@@ -74,7 +80,7 @@ for d in config["data"]:
                 for _j in range(config["repeat"]):
                     seed = _i
                     if i == len(df_col_runtime_search):
-                        (starttreetime, countquartetstime, treesearchtime, lqic, rf_plain, rf_normalized) = make_treesearch(d, args_st, algo, seed)
+                        (starttreetime, countquartetstime, treesearchtime, lqic, qpic, eqpic, rf_plain, rf_normalized) = make_treesearch(d, args_st, algo, seed)
                         print("took " + str(starttreetime+countquartetstime+treesearchtime) + "s")
                         print("sum lqic: " + str(lqic))
                         print("plain RF distance: " + str(rf_plain))
@@ -86,15 +92,17 @@ for d in config["data"]:
                         df_col_runtime_count.append(countquartetstime)
                         df_col_runtime_search.append(treesearchtime)
                         df_col_lqic.append(lqic)
+                        df_col_qpic.append(qpic)
+                        df_col_eqpic.append(eqpic)
                         df_col_rf.append(rf_plain)
                         df_col_rfnorm.append(rf_normalized)
-                        df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime_start':df_col_runtime_start, 'runtime_count':df_col_runtime_count, 'runtime_search':df_col_runtime_search, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
+                        df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime_start':df_col_runtime_start, 'runtime_count':df_col_runtime_count, 'runtime_search':df_col_runtime_search, 'LQIC': df_col_lqic, 'QPIC': df_col_qpic, 'EQPIC': df_col_eqpic, 'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
                         df.to_csv(progfile)
                     else:
                         print("skip, because already computed")
                     i = i+1
 
-df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime_start':df_col_runtime_start, 'runtime_count':df_col_runtime_count, 'runtime_search':df_col_runtime_search, 'LQIC': df_col_lqic,'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
+df = pd.DataFrame({'Dataset':df_col_dataset, 'StartTree':df_col_starttree, 'Algorithm':df_col_algo, 'runtime_start':df_col_runtime_start, 'runtime_count':df_col_runtime_count, 'runtime_search':df_col_runtime_search, 'LQIC': df_col_lqic, 'QPIC': df_col_qpic, 'EQPIC': df_col_eqpic, 'RF':df_col_rf, 'RF_normalized':df_col_rfnorm})
 df['runtime_total'] = df['runtime_start']+df['runtime_count']+df['runtime_search']
 print(df.to_string())
 
