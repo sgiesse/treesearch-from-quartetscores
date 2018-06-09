@@ -124,24 +124,20 @@ std::vector<std::vector<std::string> > leaf_sets(std::string pathToEvaluationTre
 	for (size_t i = 0; i < sets.size(); ++i) {
 		if (sets[i].size() == 0) continue;
 		leafSets.push_back(std::vector<std::string>());
-		
+
 		for (size_t j = 0; j < sets[i].size(); ++j) 
 			leafSets[leafSets.size()-1].push_back(r_tree.node_at(sets[i][j]).data<DefaultNodeData>().name);
 	}
-	for (auto x : leafSets) {
-		for (auto y : x) std::cout << y << " ";
-		std::cout << std::endl << std::endl;
-	}
+  if (Logging::max_level() >= utils::Logging::kInfo) {
+      std::cout << "Clustered Taxa:" << std::endl;
+      for (auto x : leafSets) {
+          std::cout << "[ ";
+          for (auto y : x) std::cout << y << " ";
+          std::cout << "]" << std::endl;
+      }
+  }
 	return leafSets;
 }
-
-/*std::pair<Tree, std::vector<std::vector<std::string> > > cluster_tree(const std::string & pathToEvaluationTrees) {
-    std::vector<std::vector<std::string> > leafSets = leaf_sets(pathToEvaluationTrees);
-    std::vector<std::string> leaves;
-    for (auto x : leafSets) leaves.push_back(x[0]);
-    std::shuffle(leaves.begin(), leaves.end(), Random::getMT());
-    return std::pair<Tree, std::vector<std::vector<std::string> > >(random_tree_from_leaves(leaves), leafSets);
-    }*/
 
 Tree expanded_cluster_tree(Tree& clusterTree, std::vector<std::vector<std::string> >& leafSets) {
     for (size_t i = 0; i < clusterTree.node_count(); ++i) {

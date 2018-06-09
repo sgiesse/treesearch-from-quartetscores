@@ -125,16 +125,12 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         begin = std::chrono::steady_clock::now();
 
         if (treesearchAlgorithmClustered == "nni")
-            //start_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
             start_tree = treesearch_nni<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
         else if (treesearchAlgorithmClustered == "spr")
-            //start_tree = tree_search_with_spr<CINT>(start_tree, qsc);
             throw std::runtime_error("Not implemented");
         else if (treesearchAlgorithmClustered == "combo")
-            //start_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
             start_tree = treesearch_combo<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
         else if (treesearchAlgorithmClustered == "simann")
-            //start_tree = simulated_annealing<CINT>(start_tree, qsc, false, simannfactor);
             start_tree = simulated_annealing<CINT>(start_tree, qsc, false, objectiveFunction, simannfactor);
         else if (treesearchAlgorithmClustered == "no")
             start_tree = start_tree;
@@ -145,27 +141,37 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
             std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
 
         qsc.recomputeScores(start_tree, false);
-        LOG_INFO << "Sum lqic cluster Tree: " << sum_lqic_scores(qsc) << std::endl;
+        switch (objectiveFunction) {
+        case LQIC:
+            LOG_INFO << "Sum LQIC cluster Tree: " << sum_lqic_scores(qsc) << std::endl; break;
+        case QPIC:
+            LOG_INFO << "Sum QPIC cluster Tree: " << sum_qpic_scores(qsc) << std::endl; break;
+        case EQPIC:
+            LOG_INFO << "Sum EQPIC cluster Tree: " << sum_eqpic_scores(qsc) << std::endl; break;
+        }
 
         start_tree = expanded_cluster_tree(start_tree, leafSets);
 
         qsc.recomputeScores(start_tree, false);
-        LOG_INFO << "Sum lqic expanded final Tree: " << sum_lqic_scores(qsc) << std::endl;
+        switch (objectiveFunction) {
+        case LQIC:
+            LOG_INFO << "Sum LQIC expanded Tree: " << sum_lqic_scores(qsc) << std::endl; break;
+        case QPIC:
+            LOG_INFO << "Sum QPIC expanded Tree: " << sum_qpic_scores(qsc) << std::endl; break;
+        case EQPIC:
+            LOG_INFO << "Sum EQPIC expanded Tree: " << sum_eqpic_scores(qsc) << std::endl; break;
+        }
     }
 
     begin = std::chrono::steady_clock::now();
     Tree final_tree;
     if (algorithm == "nni")
-        //final_tree = tree_search<CINT>(start_tree, qsc, restrictByLqic);
         final_tree = treesearch_nni<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
     else if (algorithm == "spr")
-        //final_tree = tree_search_with_spr<CINT>(start_tree, qsc);
         throw std::runtime_error("Not implemented");
     else if (algorithm == "combo")
-        //final_tree = tree_search_combo<CINT>(start_tree, qsc, restrictByLqic);
         final_tree = treesearch_combo<CINT>(start_tree, qsc, objectiveFunction, restrictByLqic);
     else if (algorithm == "simann")
-        //final_tree = simulated_annealing<CINT>(start_tree, qsc, clustering, simannfactor);
         final_tree = simulated_annealing<CINT>(start_tree, qsc, clustering, objectiveFunction, simannfactor);
     else if (algorithm == "no")
         final_tree = start_tree;
@@ -177,33 +183,26 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     LOG_INFO << "Finished computing final tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
 
     qsc.recomputeScores(final_tree, false);
-    //LOG_INFO << "Sum lqic final Tree: " << sum_lqic_scores(qsc) << std::endl;
 
-    switch (objectiveFunction) {
-    case LQIC:
-        LOG_INFO << "Sum LQIC final Tree: " << sum_lqic_scores(qsc) << std::endl;
-        break;
-    case QPIC:
-        LOG_INFO << "Sum QPIC final Tree: " << sum_qpic_scores(qsc) << std::endl;
-        break;
-    case EQPIC:
-        LOG_INFO << "Sum EQPIC final Tree: " << sum_eqpic_scores(qsc) << std::endl;
-        break;
-    }
+    LOG_INFO << "--------------------------------------------------" << std::endl;
+    LOG_INFO << "Sum LQIC final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum QPIC final Tree: " << sum_qpic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum EQPIC final Tree: " << sum_eqpic_scores(qsc) << std::endl;
 
-    LOG_INFO << "time Clustering: " << std::fixed << res.timeClustering << " seconds" << std::endl;
-    LOG_INFO << "time CountingQuartets: " << std::fixed << res.timeCountingQuartets << " seconds" << std::endl;
-    LOG_INFO << "time StartTree: " << std::fixed << res.timeStartTree << " seconds" << std::endl;
-    LOG_INFO << "time FirstTreesearch: " << std::fixed << res.timeFirstTreesearch << " seconds" << std::endl;
-    LOG_INFO << "time ExpandCluster: " << std::fixed << res.timeExpandCluster << " seconds" << std::endl;
-    LOG_INFO << "time FinalTreesearch: " << std::fixed << res.timeFinalTreesearch << " seconds" << std::endl;
-    LOG_INFO << "time Total: " << std::fixed << res.totalTime() << " seconds" << std::endl;
+    LOG_INFO << "Time Clustering: " << std::fixed << res.timeClustering << " seconds" << std::endl;
+    LOG_INFO << "Time CountingQuartets: " << std::fixed << res.timeCountingQuartets << " seconds" << std::endl;
+    LOG_INFO << "Time StartTree: " << std::fixed << res.timeStartTree << " seconds" << std::endl;
+    LOG_INFO << "Time FirstTreesearch: " << std::fixed << res.timeFirstTreesearch << " seconds" << std::endl;
+    LOG_INFO << "Time ExpandCluster: " << std::fixed << res.timeExpandCluster << " seconds" << std::endl;
+    LOG_INFO << "Time FinalTreesearch: " << std::fixed << res.timeFinalTreesearch << " seconds" << std::endl;
+    LOG_INFO << "Time Total: " << std::fixed << res.totalTime() << " seconds" << std::endl;
 
     DefaultTreeNewickWriter().to_file(final_tree, pathToOutput);
 }
 
 int main(int argc, char* argv[]) {
     Logging::log_to_stdout ();
+    Logging::details.level = false;
     Options::get().allow_file_overwriting(true);
 
     LOG_BOLD << "Compute quartet score based Tree" << std::endl;
@@ -288,8 +287,6 @@ int main(int argc, char* argv[]) {
         seed = seedArg.getValue();
         simannfactor = simannfactorArg.getValue();
         clustering = clusteringArg.getValue();
-        treesearchAlgorithmClustered = treesearchAlgorithmClusteredArg.getValue();
-        if (treesearchAlgorithmClustered == "same") treesearchAlgorithmClustered = algorithm;
 
         if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
         else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
@@ -304,6 +301,8 @@ int main(int argc, char* argv[]) {
 
         startTreeMethod = startTreeMethodArg.getValue();
         algorithm = algorithmArg.getValue();
+        treesearchAlgorithmClustered = treesearchAlgorithmClusteredArg.getValue();
+        if (treesearchAlgorithmClustered == "same") treesearchAlgorithmClustered = algorithm;
 
         if (objectiveFunctionArg.getValue() == "lqic") objectiveFunction = LQIC;
         if (objectiveFunctionArg.getValue() == "qpic") objectiveFunction = QPIC;
