@@ -1,6 +1,7 @@
 #ifndef STARTTREE_HPP
 #define STARTTREE_HPP
 
+#include "objective_function.hpp"
 
 Tree random_tree_from_leaves(std::vector<std::string>& leaves) {
     // Define simple Tree structure

@@ -3,6 +3,7 @@ project (treesearch)
 
 set (CMAKE_BUILD_TYPE RELEASE)
 
+
 # --------------------------------------------------------------------------------------------------
 #   Compiler and Linker Options
 # --------------------------------------------------------------------------------------------------
@@ -12,7 +13,8 @@ set (CMAKE_BUILD_TYPE RELEASE)
 set (WARN_FLAGS              "-Wall -Wextra -Wno-unknown-pragmas -pedantic -pedantic-errors")
 set (CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -std=c++11 ${WARN_FLAGS}")
 
-set (CMAKE_CXX_FLAGS_DEBUG   "-O2 -g -ggdb3 -DDEBUG -D_GLIBCXX_DEBUG")
+#set (CMAKE_CXX_FLAGS_DEBUG   "-O2 -g -ggdb3 -DDEBUG -D_GLIBCXX_DEBUG")
+set (CMAKE_CXX_FLAGS_DEBUG   "-O2 -g -ggdb3 -DDEBUG")
 set (CMAKE_CXX_FLAGS_RELEASE "-O2       -DNDEBUG")
 
 

@@ -80,6 +80,28 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     } else {
         LOG_INFO << "Read start tree from file";
         start_tree = DefaultTreeNewickReader().from_file(pathToStartTree);
+        if (start_tree.root_node().rank() == 1) {
+            std::cout << start_tree.node_count() << " " << start_tree.edge_count() << std::endl;
+            std::string newick = DefaultTreeNewickWriter().to_string(start_tree);
+            std::cout << newick << std::endl;
+
+            int c = 0; size_t a = 0; size_t b = newick.size(); size_t d = newick.size();
+            for (size_t i = 0; i < newick.size() and b == newick.size(); ++i) {
+                if (newick[i] == '(') c++;
+                if (newick[i] == ')') c--;
+                if (c == 2 and a == 0) a = i;
+                if (c == 1 and a > 0) {
+                    b = i;
+                    d = b;
+                    if (newick[i+1] == ':') {
+                        d++;
+                        while (newick[d] != ',' and newick[d] != ')') d++;
+                    }
+                }
+            }
+            std::string newick2 = newick.substr(0, a) + newick.substr(a+1, b-a-1) + newick.substr(d, newick.size() - d);
+            start_tree = DefaultTreeNewickReader().from_string(newick2);
+        }
     }
 
     end = std::chrono::steady_clock::now();
@@ -99,8 +121,8 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     Tree rand_tree = random_tree(pathToEvaluationTrees);
     QuartetScoreComputer<CINT> qsc =
         QuartetScoreComputer<CINT>(rand_tree, pathToEvaluationTrees, m, true, true);
-    qsc.recomputeScores(start_tree, false);
 
+    qsc.recomputeScores(start_tree, false);
     switch (objectiveFunction) {
     case LQIC:
         LOG_INFO << "Sum LQIC start Tree: " << sum_lqic_scores(qsc) << std::endl;
@@ -181,7 +203,6 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     res.timeFinalTreesearch =
         std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
     LOG_INFO << "Finished computing final tree. It took: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001 << " seconds." << std::endl;
-
     qsc.recomputeScores(final_tree, false);
 
     LOG_INFO << "--------------------------------------------------" << std::endl;

@@ -8,6 +8,7 @@ using namespace genesis::tree;
 #include "nni.hpp"
 #include "spr.hpp"
 #include "../externals/generator/generator.hpp"
+#include "starttree.hpp"
 
 void test_tree_manipulation(
     std::string newickIn, std::string newickExpected, std::function<Tree(Tree)> manipulateTree) {
@@ -460,4 +461,39 @@ TEST_CASE("valid SPR move") {
     REQUIRE(validSprMove(tree, 12, 15) == false);
     REQUIRE(validSprMove(tree, 12, 14) == false);
     REQUIRE(validSprMove(tree, 12, 12) == false);
+}
+
+
+TEST_CASE("recomputeScores") {
+    Tree tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    /*for (size_t i = 0; i < tree.edge_count(); ++i) {
+        for (size_t j = 0; j < tree.edge_count(); ++j) {
+            if (validSprMove(tree, i, j)) {
+                spr(tree, i, j);
+            }
+        }
+        }*/
+    size_t m = countEvalTrees("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc = QuartetScoreComputer<uint64_t>(tree, "../tests/data/yeast_all.tre", m, true, true);
+    std::vector<double> lqic1 = qsc.getLQICScores();
+
+    Tree rand_tree = random_tree("../tests/data/yeast_all.tre");
+    QuartetScoreComputer<uint64_t> qsc2 =
+        QuartetScoreComputer<uint64_t>(rand_tree, "../tests/data/yeast_all.tre", m, true, true);
+    tree = DefaultTreeNewickReader().from_file("../tests/data/yeast_reference.tre");
+    /*for (size_t i = 0; i < tree.edge_count(); ++i) {
+        for (size_t j = 0; j < tree.edge_count(); ++j) {
+            if (validSprMove(tree, i, j)) {
+                spr(tree, i, j);
+            }
+        }
+        }*/
+    qsc2.recomputeScores(tree, false);
+    std::vector<double> lqic2 = qsc2.getLQICScores();
+    REQUIRE(lqic1==lqic2);
+    /*bool eq = true;
+    for (size_t j = 0; j < lqic1.size(); ++j) {
+        if (Approx(lqic1[j]) != lqic2[j]) { eq = false; continue; }
+    }
+    REQUIRE(eq);*/
 }
