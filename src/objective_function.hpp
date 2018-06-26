@@ -14,6 +14,16 @@ double sum_lqic_scores(QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
+double mean_lqic_scores(QuartetScoreComputer<CINT>& qsc) {
+    std::vector<double> lqic = qsc.getLQICScores();
+    double sum = 0;
+    int N = 0;
+    for (size_t j = 0; j < lqic.size(); ++j)
+        if (lqic[j] <= 1 && lqic[j] >= -1) { sum += lqic[j]; N++; }
+    return sum/N;
+}
+
+template<typename CINT>
 double sum_qpic_scores(QuartetScoreComputer<CINT>& qsc) {
     std::vector<double> qpic = qsc.getQPICScores();
     double sum = 0;
@@ -23,12 +33,32 @@ double sum_qpic_scores(QuartetScoreComputer<CINT>& qsc) {
 }
 
 template<typename CINT>
+double mean_qpic_scores(QuartetScoreComputer<CINT>& qsc) {
+    std::vector<double> qpic = qsc.getQPICScores();
+    double sum = 0;
+    int N = 0;
+    for (size_t j = 0; j < qpic.size(); ++j)
+        if (qpic[j] <= 1 && qpic[j] >= -1) { sum += qpic[j]; N++; }
+    return sum/N;
+}
+
+template<typename CINT>
 double sum_eqpic_scores(QuartetScoreComputer<CINT>& qsc) {
     std::vector<double> eqpic = qsc.getEQPICScores();
     double sum = 0;
     for (size_t j = 0; j < eqpic.size(); ++j)
         if (eqpic[j] <= 1 && eqpic[j] >= -1) sum += eqpic[j];
     return sum;
+}
+
+template<typename CINT>
+double mean_eqpic_scores(QuartetScoreComputer<CINT>& qsc) {
+    std::vector<double> eqpic = qsc.getEQPICScores();
+    double sum = 0;
+    int N = 0;
+    for (size_t j = 0; j < eqpic.size(); ++j)
+        if (eqpic[j] <= 1 && eqpic[j] >= -1) { sum += eqpic[j]; N++; }
+    return sum/N;
 }
 
 template<typename CINT>
@@ -81,7 +111,6 @@ Functions<CINT>::Functions(ObjectiveFunction objective) {
         //throw std::runtime_error("Not implemented");
         break;
     case EQPIC:
-        TODO(EQPIC)
         obj_fun = sum_eqpic_scores;
         nni_a = nni_a_with_eqpic_update;
         nni_b = nni_b_with_eqpic_update;

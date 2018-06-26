@@ -44,7 +44,9 @@ data = [["../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre",
         ["../../data/evaluating-fast-ml-based/singlegene_trees/single-gene_trees/TarvD7/Best_observed/TarvD7-Best_observed.trees",
          "../../data/evaluating-fast-ml-based/coalescent_species_trees/TarvD7/TarvD7.Best_observed.ASTRAL.tre"],
         ["../../data/evaluating-fast-ml-based/singlegene_trees/single-gene_trees/ChenA4/Best_observed/ChenA4-Best_observed.trees",
-         "../../data/evaluating-fast-ml-based/coalescent_species_trees/ChenA4/ChenA4.Best_observed.ASTRAL.tre"]]
+         "../../data/evaluating-fast-ml-based/coalescent_species_trees/ChenA4/ChenA4.Best_observed.ASTRAL.tre"],
+        ["../../data/evaluating-fast-ml-based/singlegene_trees/single-gene_trees/NagyA1/Best_observed/NagyA1-Best_observed.trees",
+         "../../data/evaluating-fast-ml-based/coalescent_species_trees/NagyA1/NagyA1.Best_observed.ASTRAL.tre"]]
 
 col_data = []
 col_ref_rf = []

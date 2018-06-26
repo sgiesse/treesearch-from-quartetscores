@@ -206,9 +206,12 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     qsc.recomputeScores(final_tree, false);
 
     LOG_INFO << "--------------------------------------------------" << std::endl;
-    LOG_INFO << "Sum LQIC final Tree: " << sum_lqic_scores(qsc) << std::endl;
-    LOG_INFO << "Sum QPIC final Tree: " << sum_qpic_scores(qsc) << std::endl;
-    LOG_INFO << "Sum EQPIC final Tree: " << sum_eqpic_scores(qsc) << std::endl;
+    //LOG_INFO << "Sum LQIC final Tree: " << sum_lqic_scores(qsc) << std::endl;
+    //LOG_INFO << "Sum QPIC final Tree: " << sum_qpic_scores(qsc) << std::endl;
+    //LOG_INFO << "Sum EQPIC final Tree: " << sum_eqpic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum LQIC final Tree: " << mean_lqic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum QPIC final Tree: " << mean_qpic_scores(qsc) << std::endl;
+    LOG_INFO << "Sum EQPIC final Tree: " << mean_eqpic_scores(qsc) << std::endl;
 
     LOG_INFO << "Time Clustering: " << std::fixed << res.timeClustering << " seconds" << std::endl;
     LOG_INFO << "Time CountingQuartets: " << std::fixed << res.timeCountingQuartets << " seconds" << std::endl;
