@@ -7,9 +7,6 @@
 
 #include "QuartetScoreComputer.hpp"
 
-#include "tclap/CmdLine.h"
-#include <tclap/ValuesConstraint.h>
-
 #include <string>
 #include <limits>
 #include <cstdio>
@@ -23,6 +20,8 @@
 #include "greedy.hpp"
 #include "simulated_annealing.hpp"
 #include "starttree.hpp"
+
+#include "../externals/cli11/CLI11.hpp"
 
 using namespace genesis;
 using namespace genesis::tree;
@@ -224,6 +223,27 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     DefaultTreeNewickWriter().to_file(final_tree, pathToOutput);
 }
 
+struct VectorValidator : public CLI::Validator {
+    VectorValidator(std::vector<std::string> accepted) {
+        std::stringstream out;
+        out << "<";
+        for (size_t i = 0; i < accepted.size()-1; ++i) out << accepted[i] << "|";
+        out << accepted[accepted.size()-1] << ">";
+        tname = out.str();
+
+        func = [accepted](std::string input) {
+                   bool ok = false;
+                   for (std::string x : accepted) {
+                       if (input.compare(x) == 0) ok = true;
+                   }
+
+                   if (!ok) return std::string("Unknown input");
+
+                   return std::string();
+               };
+    }
+};
+
 int main(int argc, char* argv[]) {
     Logging::log_to_stdout ();
     Logging::details.level = false;
@@ -236,106 +256,90 @@ int main(int argc, char* argv[]) {
     std::string algorithm;
     std::string pathToOutput;
     std::string pathToStartTree;
-    bool restrictByLqic;
-    size_t numThreads;
-    bool cached;
-    size_t seed;
-    float simannfactor;
-    bool clustering;
-    std::string treesearchAlgorithmClustered;
+    bool restrictByLqic = false;
+    size_t numThreads = 1;
+    bool cached = false;
+    size_t seed = 0;
+    float simannfactor = 0.005;
+    bool clustering = false;
+    std::string treesearchAlgorithmClustered = "same";
+    std::string objectiveFunctionStr = "lqic";
     ObjectiveFunction objectiveFunction;
+    std::string loglevel = "Info";
 
-    try {
-        TCLAP::CmdLine cmd("Compute quartet score based Tree", ' ', "1.0");
 
-        TCLAP::ValueArg<std::string> evalArg("e", "eval", "Path to the evaluation trees", false, "../../data/ICTC-master/data/Empirical/Yeast/yeast_all.tre", "string");
-        cmd.add(evalArg);
+    // --- Global Options
+    CLI::App app{"uQuEST: uncertainty Quartet Estimated SuperTree"};
+    app.require_subcommand(1);
+    app.fallthrough(true);
+    app.add_option("-e, --eval", pathToEvaluationTrees, "Path to the evaluation trees")->required()->check(CLI::ExistingFile);
+    app.add_option("-o, --outfile", pathToOutput, "Path to output file")->required();
+    app.add_option("--starttree", pathToStartTree, "Path to start tree file");
+    app.add_option("-t, --numThreads", numThreads, "Number of Threads", true);
+    app.add_option("--seed", seed, "Random seed", true);
+    app.add_option("--objectiveFunction", objectiveFunctionStr, "The objective function to maximize.")->check(VectorValidator({ "lqic", "qpic", "eqpic" }));
 
-        std::vector<std::string> allowedLogLevels = { "None","Error","Warning","Info","Progress","Debug","Debug1","Debug2","Debug3","Debug4" };
-        TCLAP::ValuesConstraint<std::string> constraintLogLevels(allowedLogLevels);
-        TCLAP::ValueArg<std::string> logLevelArg("l", "loglevel", "Log Level", false, "Info" , &constraintLogLevels);
-        cmd.add(logLevelArg);
+    CLI::App* custom = app.add_subcommand("custom", "");
+    custom->add_option("-s, --startTreeMethod", startTreeMethod, "Method to generate start tree")->required()->check(VectorValidator({"random", "stepwiseaddition", "exhaustive"}));
+    custom->add_option("-a, --algorithm", algorithm, "Algorithm to search tree")->required()->check(VectorValidator({"nni", "simann", "spr", "combo", "no"}));
+    custom->add_flag("-x, --restricted", restrictByLqic, "Restrict NNI and SPR moves to edges with negative LQIC score");
+    custom->add_flag("-c, --cached", cached, "Cache Scores");
+    custom->add_flag("--clustering", clustering, "Cluster Taxa before Treesearch.");
+    custom->add_option("--factor", simannfactor, "Factor for simulated_annealing.", true)->check(CLI::Range(0.001, 0.01));
+    custom->add_option("--treesearchAlgorithmClustered", treesearchAlgorithmClustered, "")->check(VectorValidator({"nni", "simann", "spr", "combo", "no", "same"}));
+    custom->add_option("-l, --loglevel", loglevel, "Log Level")->check(VectorValidator({"None","Error","Warning","Info","Progress","Debug","Debug1","Debug2","Debug3","Debug4"}));
 
-        std::vector<std::string> allowedStartTreeMethods = { "random", "stepwiseaddition", "exhaustive" };
-        TCLAP::ValuesConstraint<std::string> constraintStart(allowedStartTreeMethods);
-        TCLAP::ValueArg<std::string> startTreeMethodArg("s", "startTreeMethod", "Method to generate start tree", false, "stepwiseaddition", &constraintStart);
-        cmd.add(startTreeMethodArg);
+    CLI::App* ccsa = app.add_subcommand("ccsa", "Cached, clustered Simulated Annealing");
+    ccsa->add_option("--factor", simannfactor, "Factor for simulated_annealing.", true)->check(CLI::Range(0.001, 0.01));
 
-        std::vector<std::string> allowedAlgorithms = { "nni", "spr", "combo", "no", "simann" };
-        TCLAP::ValuesConstraint<std::string> constraintAlgorithm(allowedAlgorithms);
-        TCLAP::ValueArg<std::string> algorithmArg("a", "algorithm", "Algorithm to search tree", false, "nni", &constraintAlgorithm);
-        cmd.add(algorithmArg);
+    CLI::App* ccnni = app.add_subcommand("ccnni", "Cached, Clustered Greedy with NNI moves");
 
-        TCLAP::ValueArg<std::string> outArg("o", "outfile", "Path to output file", false, "../../out/out.tre", "string");
-        cmd.add(outArg);
+    CLI::App* cccombo = app.add_subcommand("cccombo", "Cached, Clustered Combination of Hill-Climbing SPR moves and greedy NNI moves");
 
-        TCLAP::ValueArg<std::string> startTreeArg("", "starttree", "Path to start tree file", false, "", "string");
-        cmd.add(startTreeArg);
+    CLI11_PARSE(app, argc, argv);
+    if (app.got_subcommand(custom)) {
 
-        TCLAP::SwitchArg restrictByLqicArg("x", "restricted", "Restrict NNI and SPR moves to edges with negative LQIC score");
-        cmd.add(restrictByLqicArg);
-
-        TCLAP::ValueArg<size_t> numThreadsArg("t", "numThreads", "Number of Threads", false, 1, "int");
-        cmd.add(numThreadsArg);
-
-        TCLAP::SwitchArg cachedArg("c", "cached", "Cache LQIC Scores.");
-        cmd.add(cachedArg);
-
-        TCLAP::ValueArg<size_t> seedArg("", "seed", "Seed", false, 1, "int");
-        cmd.add(seedArg);
-
-        TCLAP::ValueArg<float> simannfactorArg("", "simannfactor", "Factor for simulated_annealing. Choose value in (0.001, 0.01).", false, 0.005, "float");
-        cmd.add(simannfactorArg);
-
-        TCLAP::SwitchArg clusteringArg("", "clustering", "Cluster Taxa before Treesearch.");
-        cmd.add(clusteringArg);
-
-        std::vector<std::string> allowedTreesearchAlgorithmClustered = { "same", "nni", "spr", "combo", "no", "simann" }; 
-        TCLAP::ValuesConstraint<std::string> constraintTreesearchAlgorithmClustered(allowedTreesearchAlgorithmClustered);
-        TCLAP::ValueArg<std::string> treesearchAlgorithmClusteredArg("", "treesearchAlgorithmClustered", "", false, "same", &constraintTreesearchAlgorithmClustered);
-        cmd.add(treesearchAlgorithmClusteredArg);
-
-        std::vector<std::string> allowedObjectiveFunction = { "lqic", "qpic", "eqpic" };
-        TCLAP::ValuesConstraint<std::string> constraintObjectiveFunction(allowedObjectiveFunction);
-        TCLAP::ValueArg<std::string> objectiveFunctionArg("", "objectiveFunction", "The objective function to maximize.", false, "lqic", &constraintObjectiveFunction);
-        cmd.add(objectiveFunctionArg);
-
-        cmd.parse(argc, argv);
-
-        pathToEvaluationTrees = evalArg.getValue();
-        pathToOutput = outArg.getValue();
-        pathToStartTree = startTreeArg.getValue();
-        restrictByLqic = restrictByLqicArg.getValue();
-        numThreads = numThreadsArg.getValue();
-        cached = cachedArg.getValue();
-        seed = seedArg.getValue();
-        simannfactor = simannfactorArg.getValue();
-        clustering = clusteringArg.getValue();
-
-        if (logLevelArg.getValue() == "None") Logging::max_level(utils::Logging::kNone);
-        else if (logLevelArg.getValue() == "Error") Logging::max_level(utils::Logging::kError);
-        else if (logLevelArg.getValue() == "Warning") Logging::max_level(utils::Logging::kWarning);
-        else if (logLevelArg.getValue() == "Info") Logging::max_level(utils::Logging::kInfo);
-        else if (logLevelArg.getValue() == "Progress") Logging::max_level(utils::Logging::kProgress);
-        else if (logLevelArg.getValue() == "Debug") Logging::max_level(utils::Logging::kDebug);
-        else if (logLevelArg.getValue() == "Debug1") Logging::max_level(utils::Logging::kDebug1);
-        else if (logLevelArg.getValue() == "Debug2") Logging::max_level(utils::Logging::kDebug2);
-        else if (logLevelArg.getValue() == "Debug3") Logging::max_level(utils::Logging::kDebug3);
-        else if (logLevelArg.getValue() == "Debug4") Logging::max_level(utils::Logging::kDebug4);
-
-        startTreeMethod = startTreeMethodArg.getValue();
-        algorithm = algorithmArg.getValue();
-        treesearchAlgorithmClustered = treesearchAlgorithmClusteredArg.getValue();
-        if (treesearchAlgorithmClustered == "same") treesearchAlgorithmClustered = algorithm;
-
-        if (objectiveFunctionArg.getValue() == "lqic") objectiveFunction = LQIC;
-        if (objectiveFunctionArg.getValue() == "qpic") objectiveFunction = QPIC;
-        if (objectiveFunctionArg.getValue() == "eqpic") objectiveFunction = EQPIC;
-
-    } catch (TCLAP::ArgException &e) {
-        std::cerr << "ERROR: " << e.error() << " for arg " << e.argId() << std::endl;
-        return 1;
+    } else if (app.got_subcommand(ccsa)) {
+        startTreeMethod = "random";
+        algorithm = "nni";
+        treesearchAlgorithmClustered = "simann";
+        clustering = true;
+        cached = true;
+    } else if (app.got_subcommand(ccnni)) {
+        startTreeMethod = "stepwiseaddition";
+        algorithm = "nni";
+        treesearchAlgorithmClustered = "nni";
+        clustering = true;
+        cached = true;
+        restrictByLqic = true;
+    } else if (app.got_subcommand(cccombo)) {
+        startTreeMethod = "stepwiseaddition";
+        algorithm = "combo";
+        treesearchAlgorithmClustered = "combo";
+        clustering = true;
+        cached = true;
+        restrictByLqic = true;
+    } else {
+        throw std::runtime_error("Unknown subcommand");
     }
+
+    if (loglevel == "None") Logging::max_level(utils::Logging::kNone);
+    else if (loglevel == "Error") Logging::max_level(utils::Logging::kError);
+    else if (loglevel == "Warning") Logging::max_level(utils::Logging::kWarning);
+    else if (loglevel == "Info") Logging::max_level(utils::Logging::kInfo);
+    else if (loglevel == "Progress") Logging::max_level(utils::Logging::kProgress);
+    else if (loglevel == "Debug") Logging::max_level(utils::Logging::kDebug);
+    else if (loglevel == "Debug1") Logging::max_level(utils::Logging::kDebug1);
+    else if (loglevel == "Debug2") Logging::max_level(utils::Logging::kDebug2);
+    else if (loglevel == "Debug3") Logging::max_level(utils::Logging::kDebug3);
+    else if (loglevel == "Debug4") Logging::max_level(utils::Logging::kDebug4);
+
+    if (treesearchAlgorithmClustered == "same") treesearchAlgorithmClustered = algorithm;
+
+    if (objectiveFunctionStr == "lqic") objectiveFunction = LQIC;
+    if (objectiveFunctionStr == "qpic") objectiveFunction = QPIC;
+    if (objectiveFunctionStr == "eqpic") objectiveFunction = EQPIC;
+
 
     FILE *fp = fopen(pathToOutput.c_str(), "w");
     if (fp == NULL) {
