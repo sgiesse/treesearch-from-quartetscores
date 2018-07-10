@@ -69,21 +69,12 @@ Tree random_tree(const std::string &evalTreesPath) {
 
 
 template<typename CINT>
-Tree stepwise_addition_tree_from_leaves(const std::string &evalTreesPath, std::vector<std::string>& leaves, size_t m, ObjectiveFunction objective) {
+Tree stepwise_addition_tree_from_leaves(QuartetScoreComputer<CINT>& qsc, std::vector<std::string>& leaves, size_t m, ObjectiveFunction objective) {
     Functions<CINT> functions = Functions<CINT>(objective);
 
     std::string newick = "(" + leaves[leaves.size()-1] + "," + leaves[leaves.size()-2] + "," + leaves[leaves.size()-3] + ");";
     leaves.pop_back(); leaves.pop_back(); leaves.pop_back();
     Tree tree = DefaultTreeNewickReader().from_string(newick);
-
-    Tree precalc_tree(tree);
-    for (int i = leaves.size()-1; i >= 0; --i) {
-        LOG_DBG << leaves[i] << std::endl;
-        add_new_node(precalc_tree,
-                     precalc_tree.edge_at(Random::get_rand_int(0, precalc_tree.edge_count()-1))).
-            secondary_link().node().data_cast<DefaultNodeData>()->name = leaves[i];
-    }
-    QuartetScoreComputer<CINT> qsc(precalc_tree, evalTreesPath, m, true, true);
 
     while (!leaves.empty()) {
         std::string lname = leaves.back();
@@ -108,12 +99,6 @@ Tree stepwise_addition_tree_from_leaves(const std::string &evalTreesPath, std::v
                 best = tnew;
                 max = sum;
             }
-
-            if (!verify_leaf_ids_match(tnew, precalc_tree)) {
-                verify_leaf_ids_match(tnew, precalc_tree, true);
-                throw std::runtime_error("leaf names don't match");
-            }
-
         }
         tree = best;
     }

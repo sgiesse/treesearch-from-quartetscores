@@ -52,6 +52,14 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
+    begin = std::chrono::steady_clock::now();
+    Tree rand_tree = random_tree(pathToEvaluationTrees);
+    QuartetScoreComputer<CINT> qsc =
+        QuartetScoreComputer<CINT>(rand_tree, pathToEvaluationTrees, m, true, true);
+    end = std::chrono::steady_clock::now();
+    res.timeCountingQuartets =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
+
     std::vector<std::string> leaves;
     std::vector<std::vector<std::string> > leafSets;
     if (clustering) {
@@ -70,7 +78,7 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
     Tree start_tree;
     if (pathToStartTree == "") {
         if (startTreeMethod == "stepwiseaddition")
-            start_tree = stepwise_addition_tree_from_leaves<CINT>(pathToEvaluationTrees, leaves, m, objectiveFunction);
+            start_tree = stepwise_addition_tree_from_leaves<CINT>(qsc, leaves, m, objectiveFunction);
         else if (startTreeMethod == "random")
             start_tree = random_tree_from_leaves(leaves);
         else if (startTreeMethod == "exhaustive")
@@ -116,11 +124,6 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         LOG_WARN << "Topology of start tree is not valid!";
     } else { LOG_INFO << "Topology of start tree is ok!"; }
 
-    begin = std::chrono::steady_clock::now();
-    Tree rand_tree = random_tree(pathToEvaluationTrees);
-    QuartetScoreComputer<CINT> qsc =
-        QuartetScoreComputer<CINT>(rand_tree, pathToEvaluationTrees, m, true, true);
-
     qsc.recomputeScores(start_tree, false);
     switch (objectiveFunction) {
     case LQIC:
@@ -133,10 +136,6 @@ void doStuff(std::string pathToEvaluationTrees, int m, std::string startTreeMeth
         LOG_INFO << "Sum EQPIC start Tree: " << sum_eqpic_scores(qsc) << std::endl;
         break;
     }
-
-    end = std::chrono::steady_clock::now();
-    res.timeCountingQuartets =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()*0.000001;
 
     if (cached) qsc.enableCache();
     else qsc.disableCache();
