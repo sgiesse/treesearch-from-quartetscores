@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
     custom->add_flag("-c, --cached", cached, "Cache Scores");
     custom->add_flag("--clustering", clustering, "Cluster Taxa before Treesearch.");
     custom->add_option("--factor", simannfactor, "Factor for simulated_annealing.", true)->check(CLI::Range(0.001, 0.01));
-    custom->add_option("--treesearchAlgorithmClustered", treesearchAlgorithmClustered, "")->check(VectorValidator({"nni", "simann", "spr", "combo", "no", "same"}));
+    custom->add_option("--treesearchAlgorithmClustered, --a0", treesearchAlgorithmClustered, "")->check(VectorValidator({"nni", "simann", "spr", "combo", "no", "same"}));
     custom->add_option("-l, --loglevel", loglevel, "Log Level")->check(VectorValidator({"None","Error","Warning","Info","Progress","Debug","Debug1","Debug2","Debug3","Debug4"}));
 
     CLI::App* ccsa = app.add_subcommand("ccsa", "Cached, clustered Simulated Annealing");
